@@ -1,5 +1,7 @@
+.idea/*
 .vs/*
 .vscode/*
 Build/*
+CMakeLists.txt
 premake5.exe
 premake5
