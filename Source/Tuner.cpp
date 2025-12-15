@@ -749,6 +749,17 @@ void Tuner::SaveResults(const std::vector<KernelResult>& results, const std::str
     }
 }
 
+void Tuner::SaveResultsToDatabase(const std::vector<KernelResult>& results) const {
+    try
+    {
+        m_Tuner->SaveResultsToDatabase(results);
+    }
+    catch (const KttException& exception)
+    {
+        TunerCore::Log(LoggingLevel::Error, exception.what());
+    }
+}
+
 std::vector<KernelResult> Tuner::LoadResults(const std::string& filePath, const OutputFormat format) const
 {
     [[maybe_unused]] UserData emptyData;

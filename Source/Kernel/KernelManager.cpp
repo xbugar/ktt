@@ -200,6 +200,41 @@ KernelDefinitionId KernelManager::GetDefinitionId(const std::string& name, const
     return iterator->first;
 }
 
+std::vector<const Kernel*> KernelManager::GetKernels() const {
+    std::vector<const Kernel *> result;
+    result.reserve(m_Kernels.size());
+
+    for (const auto &[fst, snd]: m_Kernels) {
+        result.push_back(snd.get());
+    }
+    return result;
+}
+
+std::size_t KernelManager::GetFingerprintOfParameters() const {
+    std::size_t fingerprint = 0;
+    auto kernels = GetKernels();
+    for (auto kernel: kernels) {
+        auto parameters = kernel->GetParameters();
+        for (const auto &parameter: parameters) {
+            const std::size_t h = std::hash<std::string>{}(parameter.GetName());
+            fingerprint ^= h + 0x9e3779b97f4a7c15 + (fingerprint << 6) + (fingerprint >> 2);
+        }
+    }
+
+    return fingerprint;
+}
+
+std::vector<KernelDefinition> KernelManager::GetKernelSources() const
+{
+    std::vector<KernelDefinition> result;
+    result.reserve(m_Definitions.size());
+
+    for (const auto &[fst, snd]: m_Definitions) {
+        result.push_back(*snd);
+    }
+    return result;
+}
+
 bool KernelManager::IsArgumentUsed(const ArgumentId& id) const
 {
     for (const auto& definition : m_Definitions)

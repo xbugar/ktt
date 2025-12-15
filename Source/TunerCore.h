@@ -106,6 +106,9 @@ public:
     static void SetTimeUnit(const TimeUnit unit);
     void SaveResults(const std::vector<KernelResult>& results, const std::string& filePath, const OutputFormat format,
         const UserData& data) const;
+
+    void SaveResultsToDatabase(const std::vector<KernelResult> &results) const;
+
     std::vector<KernelResult> LoadResults(const std::string& filePath, const OutputFormat format, UserData& data) const;
 
     // Compute engine

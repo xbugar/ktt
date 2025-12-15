@@ -834,6 +834,8 @@ public:
     void SaveResults(const std::vector<KernelResult>& results, const std::string& filePath, const OutputFormat format,
         const UserData& data = {}) const;
 
+    void SaveResultsToDatabase(const std::vector<KernelResult> &results) const;
+
     /** @fn std::vector<KernelResult> LoadResults(const std::string& filePath, const OutputFormat format) const
       * Loads kernel results from the specified file. The file must be previously created by the tuner method SaveResults() with
       * corresponding output format.

@@ -11,7 +11,6 @@
 #include <vector>
 #include <chrono>
 #include <thread>
-#include <stdlib.h>
 
 #include <Ktt.h>
 

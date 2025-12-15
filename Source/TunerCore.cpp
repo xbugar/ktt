@@ -1,11 +1,14 @@
 #include <fstream>
+#include <iostream>
 
 #include <Api/KttException.h>
 #include <ComputeEngine/Cuda/CudaEngine.h>
 #include <ComputeEngine/OpenCl/OpenClEngine.h>
 #include <ComputeEngine/Vulkan/VulkanEngine.h>
+#include <Database/Database.h>
 #include <Output/Deserializer/JsonDeserializer.h>
 #include <Output/Deserializer/XmlDeserializer.h>
+#include <Output/JsonConverters.h>
 #include <Output/Serializer/JsonSerializer.h>
 #include <Output/Serializer/JsonT4Serializer.h>
 #include <Output/Serializer/XmlSerializer.h>
@@ -376,6 +379,27 @@ void TunerCore::SaveResults(const std::vector<KernelResult>& results, const std:
     TunerMetadata metadata(*m_ComputeEngine);
     auto serializer = CreateSerializer(format);
     serializer->SerializeResults(metadata, results, data, outputStream);
+}
+
+void TunerCore::SaveResultsToDatabase(const std::vector<KernelResult> &results /*, kernelId (alebo skor ) */) const {
+    KernelResult bestResult = this->GetBestResult(results);
+    json output = bestResult;
+    auto sources = m_KernelManager->GetKernelSources();
+
+    /* GetKernelSource */
+    std::cout << this->GetCurrentDeviceInfo().GetString() << std::endl;
+    for (const auto& source: sources) {
+        std::cout << source.GetSource() << std::endl;
+    }
+
+    auto db = Database();
+
+    auto file = Database::OpenOrCreateDatabaseFile();
+    auto parametersFingerPrint = m_KernelManager->GetFingerprintOfParameters();
+    std::cout << "parameters: " << parametersFingerPrint << std::endl;
+
+    Database::WriteToDatabase(file, parametersFingerPrint);
+    file.close();
 }
 
 std::vector<KernelResult> TunerCore::LoadResults(const std::string& filePath, const OutputFormat format, UserData& data) const

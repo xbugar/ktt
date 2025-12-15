@@ -5,3 +5,4 @@ Build/*
 CMakeLists.txt
 premake5.exe
 premake5
+.clang-format

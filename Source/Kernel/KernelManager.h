@@ -25,7 +25,7 @@ public:
         const DimensionVector& globalSize, const DimensionVector& localSize, const std::vector<std::string>& typeNames = {});
     void RemoveKernelDefinition(const KernelDefinitionId id);
     void SetArguments(const KernelDefinitionId id, const std::vector<ArgumentId>& argumentIds);
-    
+
     KernelId CreateKernel(const std::string& name, const std::vector<KernelDefinitionId>& definitionIds);
     void RemoveKernel(const KernelId id);
     void AddParameter(const KernelId id, const std::string& name, const std::vector<ParameterValue>& values, const std::string& group);
@@ -46,6 +46,12 @@ public:
     const KernelDefinition& GetDefinition(const KernelDefinitionId id) const;
     KernelDefinition& GetDefinition(const KernelDefinitionId id);
     KernelDefinitionId GetDefinitionId(const std::string& name, const std::vector<std::string>& typeNames = {}) const;
+
+    std::vector<const Kernel *> GetKernels() const;
+
+    std::size_t GetFingerprintOfParameters() const;
+    std::vector<KernelDefinition> GetKernelSources() const;
+
     bool IsArgumentUsed(const ArgumentId& id) const;
 
 private:
