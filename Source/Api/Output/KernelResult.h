@@ -212,7 +212,7 @@ public:
       * Retrieves the sum of kernel, data movement, validation and searcher overhead.
       * @return The sum of kernel, data movement, validation and searcher overhead.
       */
-    [[nodiscard]] Nanoseconds GetTotalOverhead() const;
+    Nanoseconds GetTotalOverhead() const;
 
     /** @fn bool IsValid() const
       * Checks whether kernel result is valid. I.e., its status has value Ok.

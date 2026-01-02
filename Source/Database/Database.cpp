@@ -1,9 +1,9 @@
-#include "Database.h"
+#include <Database/Database.h>
+#include <Database/Record.h>
 
+#include <filesystem>
 #include <fstream>
 #include <utility>
-
-#include "Record.h"
 
 namespace ktt
 {
@@ -14,15 +14,16 @@ Database::Database()
 }
 
 Database::Database(std::filesystem::path databasePath) :
-    m_DatabasePath(std::move(databasePath)) {}
-
-std::ofstream Database::OpenOrCreateDatabaseFile()
+    m_DatabasePath(std::move(databasePath))
 {
-    auto dir = std::filesystem::path(std::getenv("HOME")) / ".local/share/ktt";
-    std::filesystem::create_directories(dir);
+}
 
-    auto file_path = dir / "data.db";
-    std::ofstream dbFile(file_path, std::ios::app);
+std::ifstream Database::OpenOrCreateDatabaseFileForRead() const
+{
+    std::filesystem::create_directories(m_DatabasePath);
+
+    const auto filePath = m_DatabasePath / "data.csv";
+    std::ifstream dbFile(filePath, std::ios::in);
 
     if (!dbFile.is_open())
         throw std::runtime_error("Failed to open or create database file.");
@@ -30,15 +31,27 @@ std::ofstream Database::OpenOrCreateDatabaseFile()
     return dbFile;
 }
 
-std::unique_ptr<std::vector<Record>> Database::LoadFromDatabase() const
+std::ofstream Database::OpenOrCreateDatabaseFileForWrite() const
 {
-    auto file_path = m_DatabasePath / "data.db";
-    std::ifstream dbFile(file_path, std::ios::in);
+    std::filesystem::create_directories(m_DatabasePath);
+
+    const auto filePath = m_DatabasePath / "data.csv";
+    std::ofstream dbFile(filePath, std::ios::app);
 
     if (!dbFile.is_open())
         throw std::runtime_error("Failed to open or create database file.");
 
-    std::unique_ptr<std::vector<Record>> records;
+    return dbFile;
+}
+
+std::unique_ptr<std::vector<Record> > Database::LoadFromDatabase() const
+{
+    std::ifstream dbFile = OpenOrCreateDatabaseFileForRead();
+
+    if (!dbFile.is_open())
+        throw KttException("Failed to open or create database file.", ExceptionReason::Database);
+
+    auto records = std::make_unique<std::vector<Record>>();
     std::string line;
     while (std::getline(dbFile, line))
     {
@@ -50,17 +63,18 @@ std::unique_ptr<std::vector<Record>> Database::LoadFromDatabase() const
     }
 
     dbFile.close();
-
     return records;
 }
 
-void Database::WriteToDatabase(std::ofstream& dbFile, const std::size_t& data)
+void Database::WriteToDatabase(const Record& record) const
 {
+    std::ofstream dbFile = OpenOrCreateDatabaseFileForWrite();
     if (!dbFile.is_open())
     {
-        throw std::runtime_error("Database file is not open.");
+        throw KttException("Database file is not open.", ExceptionReason::Database);
     }
-    dbFile << data << std::endl;
+    dbFile << record.Serialize() << std::endl;
+    dbFile.close();
 }
 
 }

@@ -6,6 +6,7 @@
 
 namespace ktt
 {
+class TunerCore;
 struct Record;
 
 class Database
@@ -15,13 +16,16 @@ class Database
 public:
     explicit Database();
 
-    explicit Database(std::filesystem::path databasePath);
+    Database(std::filesystem::path databasePath);
 
-    static std::ofstream OpenOrCreateDatabaseFile();
-
-    [[nodiscard]]
     std::unique_ptr<std::vector<Record>> LoadFromDatabase() const;
 
-    static void WriteToDatabase(std::ofstream& dbFile, const std::size_t& data);
+    void WriteToDatabase(const Record& record) const;
+
+private:
+    std::ifstream OpenOrCreateDatabaseFileForRead() const;
+    std::ofstream OpenOrCreateDatabaseFileForWrite() const;
+
+    static inline std::string header = "parameter_finger_print|kernel_source|best_result";
 };
-}
+} // namespace ktt

@@ -235,6 +235,11 @@ std::vector<KernelDefinition> KernelManager::GetKernelSources() const
     return result;
 }
 
+std::unique_ptr<KernelDefinition> KernelManager::GetKernelSource(const KernelDefinitionId id)
+{
+    return std::move(m_Definitions[id]);
+}
+
 bool KernelManager::IsArgumentUsed(const ArgumentId& id) const
 {
     for (const auto& definition : m_Definitions)

@@ -234,7 +234,6 @@ int main(int argc, char** argv)
         tuner.SetProfileBasedSearcher(kernel, defaultMlModel, false);
     }
 #endif
-
     const auto results = tuner.Tune(kernel/*, std::make_unique<ktt::ConfigurationCount>(2)*/);
     tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::JSON);
     tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::XML);

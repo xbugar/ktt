@@ -19,6 +19,8 @@
 #include <Utility/FileSystem.h>
 #include <TunerCore.h>
 
+#include <Database/Record.h>
+
 namespace ktt
 {
 
@@ -360,7 +362,7 @@ KernelResult TunerCore::GetBestResult(const std::vector<KernelResult>& results) 
 }
 
 void TunerCore::SaveResults(const std::vector<KernelResult>& results, const std::string& filePath, const OutputFormat format,
-    const UserData& data) const
+                            const UserData& data) const
 {
     if (results.empty())
     {
@@ -381,25 +383,32 @@ void TunerCore::SaveResults(const std::vector<KernelResult>& results, const std:
     serializer->SerializeResults(metadata, results, data, outputStream);
 }
 
-void TunerCore::SaveResultsToDatabase(const std::vector<KernelResult> &results /*, kernelId (alebo skor ) */) const {
-    KernelResult bestResult = this->GetBestResult(results);
-    json output = bestResult;
-    auto sources = m_KernelManager->GetKernelSources();
+void TunerCore::SaveResultsToDatabase(const std::vector<KernelResult>& results) const {
+    const auto sources = m_KernelManager->GetKernelSources();
 
     /* GetKernelSource */
-    std::cout << this->GetCurrentDeviceInfo().GetString() << std::endl;
+
+    std::cout << GetCurrentDeviceInfo().GetString() << std::endl;
     for (const auto& source: sources) {
         std::cout << source.GetSource() << std::endl;
     }
 
-    auto db = Database();
+    const auto db = Database();
+    auto rec = Record();
+    rec.m_ParameterFingerprint = m_KernelManager->GetFingerprintOfParameters();
+    rec.m_KernelSourcePath = "Tvoja mama path";
+    rec.m_BestResult = GetBestResult(results);
+    db.WriteToDatabase(rec);
 
-    auto file = Database::OpenOrCreateDatabaseFile();
-    auto parametersFingerPrint = m_KernelManager->GetFingerprintOfParameters();
+    auto x = db.LoadFromDatabase();
+    for (const auto& r: *x) {
+        std::cout << r.m_ParameterFingerprint << std::endl;
+        std::cout << r.m_KernelSourcePath << std::endl;
+        std::cout << r.m_BestResult.dump(1) << std::endl;
+    }
+
+    const auto parametersFingerPrint = m_KernelManager->GetFingerprintOfParameters();
     std::cout << "parameters: " << parametersFingerPrint << std::endl;
-
-    Database::WriteToDatabase(file, parametersFingerPrint);
-    file.close();
 }
 
 std::vector<KernelResult> TunerCore::LoadResults(const std::string& filePath, const OutputFormat format, UserData& data) const

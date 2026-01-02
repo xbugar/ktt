@@ -52,6 +52,8 @@ public:
     std::size_t GetFingerprintOfParameters() const;
     std::vector<KernelDefinition> GetKernelSources() const;
 
+    std::unique_ptr<KernelDefinition> GetKernelSource(KernelDefinitionId id);
+
     bool IsArgumentUsed(const ArgumentId& id) const;
 
 private:
