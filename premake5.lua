@@ -250,6 +250,9 @@ function linkAllLibraries()
             error("Python installation was not found. Please ensure that paths to Python headers and Python library (including library name) are correctly set in the environment variables under PYTHON_HEADERS and PYTHON_LIB.")
         end
     end
+
+    -- Link SQLite3 for database functionality
+    links {"sqlite3"}
 end
 
 -- Command line arguments definition

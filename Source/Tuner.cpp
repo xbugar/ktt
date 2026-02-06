@@ -749,10 +749,10 @@ void Tuner::SaveResults(const std::vector<KernelResult>& results, const std::str
     }
 }
 
-void Tuner::SaveResultsToDatabase(const std::vector<KernelResult>& results) const {
+void Tuner::SaveResultsToDatabase(const std::vector<KernelResult>& results, const KernelId kernelId) const {
     try
     {
-        m_Tuner->SaveResultsToDatabase(results);
+        m_Tuner->SaveResultsToDatabase(results, kernelId);
     }
     catch (const KttException& exception)
     {

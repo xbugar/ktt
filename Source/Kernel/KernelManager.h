@@ -49,7 +49,7 @@ public:
 
     std::vector<const Kernel *> GetKernels() const;
 
-    std::size_t GetFingerprintOfParameters() const;
+    std::size_t GetFingerprintOfParameters(KernelDefinitionId id) const;
     std::vector<KernelDefinition> GetKernelSources() const;
 
     std::unique_ptr<KernelDefinition> GetKernelSource(KernelDefinitionId id);

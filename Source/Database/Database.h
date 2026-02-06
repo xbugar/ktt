@@ -1,8 +1,9 @@
 #pragma once
 #include <filesystem>
-#include <iosfwd>
+#include <memory>
 #include <Output/JsonConverters.h>
 
+struct sqlite3;
 
 namespace ktt
 {
@@ -12,20 +13,26 @@ struct Record;
 class Database
 {
     std::filesystem::path m_DatabasePath;
+    mutable sqlite3* m_Connection;
 
 public:
     explicit Database();
 
     Database(std::filesystem::path databasePath);
 
+    ~Database();
+
+    // Disable copy
+    Database(const Database&) = delete;
+    Database& operator=(const Database&) = delete;
+
     std::unique_ptr<std::vector<Record>> LoadFromDatabase() const;
 
     void WriteToDatabase(const Record& record) const;
 
 private:
-    std::ifstream OpenOrCreateDatabaseFileForRead() const;
-    std::ofstream OpenOrCreateDatabaseFileForWrite() const;
-
-    static inline std::string header = "parameter_finger_print|kernel_source|best_result";
+    void OpenOrCreateDatabase() const;
+    void CloseDatabase() const;
+    void CreateTableIfNotExists() const;
 };
 } // namespace ktt

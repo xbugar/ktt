@@ -15,7 +15,8 @@ struct Record
     std::string Serialize() const;
 
     std::size_t m_ParameterFingerprint{};
-    std::filesystem::path m_KernelSourcePath;
+    std::size_t m_SourceFingerprint{};
+    std::size_t m_ConstraintFingerprint{};
     json m_BestResult;
 };
 }
