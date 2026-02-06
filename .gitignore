@@ -5,4 +5,5 @@ Build/*
 CMakeLists.txt
 premake5.exe
 premake5
+*.swp
 .clang-format

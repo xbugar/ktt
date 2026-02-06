@@ -7,6 +7,7 @@
 #include <ComputeEngine/Vulkan/VulkanEngine.h>
 #include <Database/Database.h>
 #include <Output/Deserializer/JsonDeserializer.h>
+#include <Output/Deserializer/JsonT4Deserializer.h>
 #include <Output/Deserializer/XmlDeserializer.h>
 #include <Output/JsonConverters.h>
 #include <Output/Serializer/JsonSerializer.h>
@@ -625,6 +626,8 @@ std::unique_ptr<Deserializer> TunerCore::CreateDeserializer(const OutputFormat f
     {
     case OutputFormat::JSON:
         return std::make_unique<JsonDeserializer>();
+    case OutputFormat::JSON_T4:
+        return std::make_unique<JsonT4Deserializer>();
     case OutputFormat::XML:
         return std::make_unique<XmlDeserializer>();
     default:
