@@ -722,7 +722,7 @@ void Tuner::SetTimeUnit(const TimeUnit unit)
 }
 
 KernelResult Tuner::GetBestResult(const std::vector<KernelResult>& results) const
-{   
+{
     try
     {
         return m_Tuner->GetBestResult(results);

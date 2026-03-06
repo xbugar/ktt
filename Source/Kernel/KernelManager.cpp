@@ -200,17 +200,6 @@ KernelDefinitionId KernelManager::GetDefinitionId(const std::string& name, const
     return iterator->first;
 }
 
-std::size_t KernelManager::GetFingerprintOfParameters(const KernelDefinitionId id) const {
-    std::size_t fingerprint = 0;
-    auto kernel = GetKernel(id);
-        auto parameters = kernel->;
-        for (const auto &parameter: parameters) {
-            const std::size_t h = std::hash<std::string>{}(parameter.GetName());
-            fingerprint ^= h + 0x9e3779b97f4a7c15 + (fingerprint << 6) + (fingerprint >> 2);
-        }
-
-    return fingerprint;
-}
 
 std::unique_ptr<KernelDefinition> KernelManager::GetKernelSource(const KernelDefinitionId id) {
     return std::move(m_Definitions[id]);

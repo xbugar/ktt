@@ -1,3 +1,4 @@
+#include <TunerCore.h>
 #include <fstream>
 #include <iostream>
 
@@ -6,6 +7,7 @@
 #include <ComputeEngine/OpenCl/OpenClEngine.h>
 #include <ComputeEngine/Vulkan/VulkanEngine.h>
 #include <Database/Database.h>
+#include <Database/Record.h>
 #include <Output/Deserializer/JsonDeserializer.h>
 #include <Output/Deserializer/JsonT4Deserializer.h>
 #include <Output/Deserializer/XmlDeserializer.h>
@@ -16,11 +18,9 @@
 #include <Output/TimeConfiguration/TimeConfiguration.h>
 #include <Output/TunerMetadata.h>
 #include <Utility/ErrorHandling/Assert.h>
-#include <Utility/Logger/Logger.h>
 #include <Utility/FileSystem.h>
-#include <TunerCore.h>
-
-#include <Database/Record.h>
+#include <Utility/Logger/Logger.h>
+#include <Utility/FingerPrint/FingerPrintUtility.h>
 
 namespace ktt
 {
@@ -384,26 +384,32 @@ void TunerCore::SaveResults(const std::vector<KernelResult>& results, const std:
     serializer->SerializeResults(metadata, results, data, outputStream);
 }
 
-void TunerCore::SaveResultsToDatabase(const std::vector<KernelResult>& results, const KernelId kernelId) const {
-    const auto source = m_KernelManager->GetKernelSource(sourceId);
+void TunerCore::SaveResultsToDatabase(const std::vector<KernelResult> &results, const KernelId kernelId) const
+{
+    const auto& kernel = m_KernelManager->GetKernel(kernelId);
+    const auto& parameters = kernel.GetParameters();
+    const auto& sources = kernel.GetDefinitions();
+    const auto y = kernel.GetConstraints();
     const auto db = Database();
-    auto rec = Record {
-            0,
-            std::filesystem::path(""),
-            json()
-    };
-    rec.m_ParameterFingerprint = m_KernelManager->GetFingerprintOfParameters(TODO);
+
+    auto rec = Record();
+    rec.m_ParameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
+    rec.m_SourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
     rec.m_BestResult = GetBestResult(results);
+    auto [constraintHash, hasUndefinedLambda] = FingerPrintUtility::GetFingerprintOfConstraints(y);
+    rec.m_ConstraintFingerprint = constraintHash;
+    rec.m_HasUndefinedConstraintLambda = hasUndefinedLambda;
+
     db.WriteToDatabase(rec);
 
-    auto x = db.LoadFromDatabase();
-    for (const auto& r: *x) {
-        std::cout << r.m_ParameterFingerprint << std::endl;
-        std::cout << r.m_BestResult.dump(1) << std::endl;
-    }
+    // auto x = db.LoadFromDatabase();
+    // for (const auto &r : *x)
+    // {
+    //     std::cout << r.m_ParameterFingerprint << std::endl;
+    //     std::cout << r.m_BestResult.dump(1) << std::endl;
+    // }
 
-    const auto parametersFingerPrint = m_KernelManager->GetFingerprintOfParameters(TODO);
-    std::cout << "parameters: " << parametersFingerPrint << std::endl;
+    // std::cout << "parameters: " << rec.m_ParameterFingerprint << std::endl;
 }
 
 std::vector<KernelResult> TunerCore::LoadResults(const std::string& filePath, const OutputFormat format, UserData& data) const

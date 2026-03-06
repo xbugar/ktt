@@ -42,6 +42,7 @@ public:
     void AddScriptParameter(const KernelId id, const std::string& name, const ParameterValueType valueType, const std::string& valueScript,
         const std::string& group);
     void AddConstraint(const KernelId id, const std::vector<std::string>& parameters, ConstraintFunction function);
+    void AddConstraint(const KernelId id, const std::vector<std::string>& parameters, ConstraintFunction function, std::string imprint);
     void AddGenericConstraint(const KernelId id, const std::vector<std::string>& parameters, GenericConstraintFunction function);
     void AddScriptConstraint(const KernelId id, const std::vector<std::string>& parameters, const std::string& script);
     void AddThreadModifier(const KernelId id, const std::vector<KernelDefinitionId>& definitionIds, const ModifierType type,

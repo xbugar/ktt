@@ -12,8 +12,6 @@ struct Record;
 
 class Database
 {
-    std::filesystem::path m_DatabasePath;
-    mutable sqlite3* m_Connection;
 
 public:
     explicit Database();
@@ -34,5 +32,9 @@ private:
     void OpenOrCreateDatabase() const;
     void CloseDatabase() const;
     void CreateTableIfNotExists() const;
+
+
+    std::filesystem::path m_DatabasePath;
+    mutable sqlite3* m_Connection;
 };
 } // namespace ktt
