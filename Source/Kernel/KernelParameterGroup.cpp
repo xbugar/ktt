@@ -1,6 +1,7 @@
 #include <algorithm>
 
 #include <Kernel/KernelParameterGroup.h>
+#include <Utility/Comparators/ConstraintComparator.h>
 #include <Utility/ErrorHandling/Assert.h>
 #include <Utility/StlHelpers.h>
 
@@ -48,8 +49,8 @@ bool KernelParameterGroup::ContainsParameter(const std::string& parameter) const
 std::vector<KernelParameterGroup> KernelParameterGroup::GenerateSubgroups() const
 {
     std::set<const KernelParameter*> remainingParameters(m_Parameters.cbegin(), m_Parameters.cend());
-    std::set<const KernelConstraint*> remainingConstraints(m_Constraints.cbegin(), m_Constraints.cend());
-    
+    std::set<const KernelConstraint*, ConstraintPointerComparator> remainingConstraints(m_Constraints.cbegin(), m_Constraints.cend());
+
     std::vector<KernelParameterGroup> result;
     size_t subgroupNumber = 0;
 
@@ -115,10 +116,7 @@ std::vector<const KernelParameter*> KernelParameterGroup::GetParametersInEnumera
     std::vector<const KernelParameter*> result;
     auto sortedConstraints = m_Constraints;
 
-    std::sort(sortedConstraints.begin(), sortedConstraints.end(), [](const auto* left, const auto* right)
-    {
-        return left->GetParameters().size() < right->GetParameters().size();
-    });
+    std::sort(sortedConstraints.begin(), sortedConstraints.end(), ConstraintPointerComparator());
 
     for (const auto* constraint : sortedConstraints)
     {
