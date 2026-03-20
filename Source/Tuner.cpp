@@ -535,6 +535,25 @@ std::vector<KernelResult> Tuner::Tune(const KernelId id, const KernelDimensions&
     }
 }
 
+std::vector<KernelResult> Tuner::TuneWithDbCheck(const KernelId id, std::unique_ptr<StopCondition> stopCondition)
+{
+    return TuneWithDbCheck(id, {}, std::move(stopCondition));
+}
+
+std::vector<KernelResult> Tuner::TuneWithDbCheck(const KernelId id, const KernelDimensions& dimensions,
+    std::unique_ptr<StopCondition> stopCondition)
+{
+    try
+    {
+        return m_Tuner->TuneKernelWithDbCheck(id, dimensions, std::move(stopCondition));
+    }
+    catch (const KttException& exception)
+    {
+        TunerCore::Log(LoggingLevel::Error, exception.what());
+        return std::vector<KernelResult>{};
+    }
+}
+
 KernelResult Tuner::TuneIteration(const KernelId id, const std::vector<BufferOutputDescriptor>& output,
     const bool recomputeReference)
 {

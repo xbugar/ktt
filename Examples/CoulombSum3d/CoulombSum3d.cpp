@@ -151,16 +151,16 @@ int main(int argc, char** argv)
 
     if constexpr (!useDenseParameters && !useWideParameters)
     {
-        tuner.AddParameter(kernel, "WORK_GROUP_SIZE_Y", std::vector<uint64_t>{1, 2, 4, 8});
+        tuner.AddParameter(kernel, "WORK_GROUP_SIZE_Y", std::vector<uint64_t>{2, 4, 8});
         //tuner.AddParameter(kernel, "WORK_GROUP_SIZE_Y", std::vector<uint64_t>{2,4});
     }
     else if constexpr (!useWideParameters)
     {
-        tuner.AddParameter(kernel, "WORK_GROUP_SIZE_Y", std::vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8});
+        tuner.AddParameter(kernel, "WORK_GROUP_SIZE_Y", std::vector<uint64_t>{2, 3, 4, 5, 6, 7, 8});
     }
     else
     {
-        tuner.AddParameter(kernel, "WORK_GROUP_SIZE_Y", std::vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32});
+        tuner.AddParameter(kernel, "WORK_GROUP_SIZE_Y", std::vector<uint64_t>{2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28, 32});
     }
 
     tuner.AddThreadModifier(kernel, {definition}, ktt::ModifierType::Local, ktt::ModifierDimension::Y, "WORK_GROUP_SIZE_Y",
@@ -234,7 +234,7 @@ int main(int argc, char** argv)
         tuner.SetProfileBasedSearcher(kernel, defaultMlModel, false);
     }
 #endif
-    const auto results = tuner.Tune(kernel/*, std::make_unique<ktt::ConfigurationCount>(2)*/);
+    const auto results = tuner.TuneWithDbCheck(kernel/*, std::make_unique<ktt::ConfigurationCount>(2)*/);
     tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::JSON);
     tuner.SaveResults(results, "CoulombSumOutput_T4", ktt::OutputFormat::JSON_T4);
     tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::XML);

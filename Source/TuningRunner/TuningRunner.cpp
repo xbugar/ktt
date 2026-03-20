@@ -40,7 +40,7 @@ std::vector<KernelResult> TuningRunner::Tune(const Kernel& kernel, const KernelD
         KernelResult result(kernel.GetName(), m_ConfigurationManager->GetCurrentConfiguration(id), "");
         KernelResult multiResult(kernel.GetName(), m_ConfigurationManager->GetCurrentConfiguration(id), ktt::Timestamp::GetTimestamp());
         int iter = 0;
-        do 
+        do
         {
             result = TuneIteration(kernel, dimensions, KernelRunMode::OfflineTuning, std::vector<BufferOutputDescriptor>{}, false);
             multiResult.FuseProfilingTimes(result, (iter == 0));
@@ -224,6 +224,17 @@ uint64_t TuningRunner::GetConfigurationsCount(const KernelId id) const
 KernelConfiguration TuningRunner::GetBestConfiguration(const KernelId id) const
 {
     return m_ConfigurationManager->GetBestConfiguration(id);
+}
+
+size_t TuningRunner::GetConfigurationFingerprint(const Kernel& kernel) const
+{
+    const auto id = kernel.GetId();
+    if (!m_ConfigurationManager->HasData(id))
+    {
+        m_ConfigurationManager->InitializeData(kernel);
+    }
+
+    return m_ConfigurationManager->GetConfigurationFingerprint(id);
 }
 
 const KernelResult& TuningRunner::FindMatchingResult(const std::vector<KernelResult>& results,

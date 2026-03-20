@@ -1,6 +1,8 @@
 #include <Api/KttException.h>
 #include <TuningRunner/ConfigurationTree.h>
 #include <Utility/ErrorHandling/Assert.h>
+#include <Utility/FingerPrint/FingerPrintUtility.h>
+#include <stack>
 
 namespace ktt
 {
@@ -66,7 +68,7 @@ uint64_t ConfigurationTree::GetConfigurationsCount() const
 KernelConfiguration ConfigurationTree::GetConfiguration(const uint64_t index) const
 {
     KttAssert(m_IsBuilt, "The tree must be built before submitting queries");
-    
+
     if (index >= GetConfigurationsCount())
     {
         throw KttException("Invalid configuration index");
@@ -91,6 +93,50 @@ bool ConfigurationTree::IsConfigurationValid(const KernelConfiguration& configur
     KttAssert(m_IsBuilt, "The tree must be built before submitting queries");
     const std::vector<size_t> indices = GetIndicesFromConfiguration(configuration);
     return m_Root->IsPathValid(indices);
+}
+
+size_t ConfigurationTree::GetConfigurationFingerprint() const
+{
+    if (!IsBuilt())
+    {
+        throw KttException("The tree must be built before submitting queries");
+    }
+
+    size_t result = 0;
+
+    // Use a stack to traverse the tree non-recursively
+    // Each stack entry contains: (node pointer, level)
+    std::stack<std::pair<const ConfigurationNode*, uint64_t>> stack;
+
+    if (m_Root)
+    {
+        stack.push({m_Root.get(), 0});
+    }
+
+    while (!stack.empty())
+    {
+        auto [node, level] = stack.top();
+        stack.pop();
+
+        // Hash the node's level
+        result = FingerPrintUtility::HashFunction(result, level);
+
+        // Hash the node's index (parameter value index)
+        result = FingerPrintUtility::HashFunction(result, node->GetIndex());
+
+        // Hash the number of children
+        result = FingerPrintUtility::HashFunction(result, node->GetChildrenCount());
+
+        // Add all children to the stack in reverse order
+        // (to maintain consistent left-to-right traversal order)
+        const auto& children = node->GetChildren();
+        for (auto it = children.rbegin(); it != children.rend(); ++it)
+        {
+            stack.push({it->get(), level + 1});
+        }
+    }
+
+    return result;
 }
 
 void ConfigurationTree::InitializeParameterLevels(const std::vector<const KernelParameter*>& parameters)

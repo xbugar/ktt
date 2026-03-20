@@ -1,7 +1,6 @@
 #pragma once
 #include <filesystem>
 #include <memory>
-#include <Output/JsonConverters.h>
 
 struct sqlite3;
 
@@ -24,15 +23,16 @@ public:
     Database(const Database&) = delete;
     Database& operator=(const Database&) = delete;
 
-    std::unique_ptr<std::vector<Record>> LoadFromDatabase() const;
-
-    void WriteToDatabase(const Record& record) const;
+    std::unique_ptr<Record> CheckTheDatabase(const Record& data) const;
+    void SaveToDatabase(const Record &record) const;
 
 private:
     void OpenOrCreateDatabase() const;
     void CloseDatabase() const;
     void CreateTableIfNotExists() const;
 
+    void Save(const Record &record) const;
+    std::unique_ptr<Record> Load(const Record &data) const;
 
     std::filesystem::path m_DatabasePath;
     mutable sqlite3* m_Connection;

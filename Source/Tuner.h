@@ -659,21 +659,26 @@ public:
     std::vector<KernelResult> Tune(const KernelId id, const KernelDimensions& dimensions,
         std::unique_ptr<StopCondition> stopCondition = nullptr);
 
+
+    std::vector<KernelResult> TuneWithDbCheck(KernelId id, std::unique_ptr<StopCondition> stopCondition = nullptr);
+    std::vector<KernelResult> TuneWithDbCheck(KernelId id, const KernelDimensions &dimensions,
+                                              std::unique_ptr<StopCondition> stopCondition = nullptr);
+
     /** @fn KernelResult TuneIteration(const KernelId id, const std::vector<BufferOutputDescriptor>& output,
-      * const bool recomputeReference = false)
-      * Performs one step of the tuning process for specified kernel. When this method is called for the kernel for the first time,
-      * it creates configuration space based on combinations of provided kernel parameters and constraints. Each time this method
-      * is called, it launches a single kernel configuration. If all configurations were already launched, it runs kernel using the
-      * best configuration. Output data can be retrieved by providing output descriptors. Allows control over recomputation of
-      * reference output.
-      * @param id Id of the tuned kernel.
-      * @param output User-provided memory locations for kernel arguments which should be retrieved. See BufferOutputDescriptor for
-      * more information.
-      * @param recomputeReference Flag which controls whether recomputation of reference output should be performed or not. Useful
-      * if kernel data between individual method invocations change.
-      * @return Result containing information about kernel computation in specific configuration. See KernelResult for more
-      * information.
-      */
+     * const bool recomputeReference = false)
+     * Performs one step of the tuning process for specified kernel. When this method is called for the kernel for the
+     * first time, it creates configuration space based on combinations of provided kernel parameters and constraints.
+     * Each time this method is called, it launches a single kernel configuration. If all configurations were already
+     * launched, it runs kernel using the best configuration. Output data can be retrieved by providing output
+     * descriptors. Allows control over recomputation of reference output.
+     * @param id Id of the tuned kernel.
+     * @param output User-provided memory locations for kernel arguments which should be retrieved. See
+     * BufferOutputDescriptor for more information.
+     * @param recomputeReference Flag which controls whether recomputation of reference output should be performed or
+     * not. Useful if kernel data between individual method invocations change.
+     * @return Result containing information about kernel computation in specific configuration. See KernelResult for
+     * more information.
+     */
     KernelResult TuneIteration(const KernelId id, const std::vector<BufferOutputDescriptor>& output,
         const bool recomputeReference = false);
 

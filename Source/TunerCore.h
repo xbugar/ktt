@@ -89,6 +89,8 @@ public:
 
     // Kernel tuning and configurations
     std::vector<KernelResult> TuneKernel(const KernelId id, const KernelDimensions& dimensions, std::unique_ptr<StopCondition> stopCondition);
+    std::vector<KernelResult> TuneKernelWithDbCheck(KernelId id, const KernelDimensions &dimensions,
+                                                    std::unique_ptr<StopCondition> stopCondition);
     KernelResult TuneKernelIteration(const KernelId id, const KernelDimensions& dimensions, const std::vector<BufferOutputDescriptor>& output,
         const bool recomputeReference);
     std::vector<KernelResult> SimulateKernelTuning(const KernelId id, const std::vector<KernelResult>& results,

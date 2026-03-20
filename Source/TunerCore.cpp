@@ -275,6 +275,27 @@ std::vector<KernelResult> TunerCore::TuneKernel(const KernelId id, const KernelD
     return m_TuningRunner->Tune(kernel, dimensions, std::move(stopCondition));
 }
 
+std::vector<KernelResult> TunerCore::TuneKernelWithDbCheck(const KernelId id, const KernelDimensions& dimensions,
+    std::unique_ptr<StopCondition> stopCondition)
+{
+    const auto& kernel = m_KernelManager->GetKernel(id);
+    const auto& parameters = kernel.GetParameters();
+    const auto& sources = kernel.GetDefinitions();
+    const auto y = kernel.GetConstraints();
+    const auto db = Database();
+
+    auto rec = Record();
+    rec.m_ParameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
+    rec.m_SourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
+    rec.m_Gpu = m_ComputeEngine->GetCurrentDeviceInfo().GetName();
+    rec.m_TuningSpaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
+
+    if (const auto record = db.CheckTheDatabase(rec))
+        return {record->m_BestResult};
+
+    return m_TuningRunner->Tune(kernel, dimensions, std::move(stopCondition));
+}
+
 KernelResult TunerCore::TuneKernelIteration(const KernelId id, const KernelDimensions& dimensions,
     const std::vector<BufferOutputDescriptor>& output, const bool recomputeReference)
 {
@@ -396,20 +417,10 @@ void TunerCore::SaveResultsToDatabase(const std::vector<KernelResult> &results, 
     rec.m_ParameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
     rec.m_SourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
     rec.m_BestResult = GetBestResult(results);
-    auto [constraintHash, hasUndefinedLambda] = FingerPrintUtility::GetFingerprintOfConstraints(y);
-    rec.m_ConstraintFingerprint = constraintHash;
-    rec.m_HasUndefinedConstraintLambda = hasUndefinedLambda;
+    rec.m_Gpu = m_ComputeEngine->GetCurrentDeviceInfo().GetName();
+    rec.m_TuningSpaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
 
-    db.WriteToDatabase(rec);
-
-    // auto x = db.LoadFromDatabase();
-    // for (const auto &r : *x)
-    // {
-    //     std::cout << r.m_ParameterFingerprint << std::endl;
-    //     std::cout << r.m_BestResult.dump(1) << std::endl;
-    // }
-
-    // std::cout << "parameters: " << rec.m_ParameterFingerprint << std::endl;
+    db.SaveToDatabase(rec);
 }
 
 std::vector<KernelResult> TunerCore::LoadResults(const std::string& filePath, const OutputFormat format, UserData& data) const

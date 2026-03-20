@@ -39,7 +39,7 @@ bool ConfigurationForest::IsBuilt() const
     {
         result &= tree->IsBuilt();
     }
-    
+
     return result;
 }
 
@@ -106,7 +106,7 @@ uint64_t ConfigurationForest::GetLocalConfigurationIndex(const KernelConfigurati
         result += multiplier * localIndex;
         multiplier *= tree->GetConfigurationsCount();
     }
-    
+
     return result;
 }
 
@@ -118,6 +118,17 @@ bool ConfigurationForest::IsConfigurationValid(const KernelConfiguration& config
     for (const auto& tree : m_Trees)
     {
         result &= tree->IsConfigurationValid(configuration);
+    }
+
+    return result;
+}
+size_t ConfigurationForest::GetConfigurationFingerprint() const
+{
+    size_t result = 0;
+
+    for (const auto& tree : m_Trees)
+    {
+        result ^= tree->GetConfigurationFingerprint();
     }
 
     return result;

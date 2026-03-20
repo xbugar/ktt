@@ -35,6 +35,7 @@ public:
     bool IsProcessed() const;
     KernelConfiguration GetCurrentConfiguration() const;
     KernelConfiguration GetBestConfiguration() const;
+    size_t GetConfigurationFingerprint() const;
 
 private:
     std::vector<std::unique_ptr<ConfigurationForest>> m_Forests;

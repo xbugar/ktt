@@ -52,28 +52,6 @@ std::size_t FingerPrintUtility::GetFingerprintOfParameters(const std::set<Kernel
     return base;
 }
 
-std::tuple<size_t, bool> FingerPrintUtility::GetFingerprintOfConstraints(const std::vector<const KernelConstraint*> &constraints)
-{
-    std::size_t base = 0;
-    auto undefinedLambda = false;
-    for (const auto &constraint : constraints)
-    {
-        const auto imprint = constraint->GetImprint();
-        if (imprint.empty())
-            undefinedLambda = true;
-
-        const std::size_t constraintHash = std::hash<std::string>{}(imprint);
-        base = HashFunction(base, constraintHash);
-
-        for (const auto *parameter : constraint->GetParameters())
-        {
-            const std::size_t paramHash = std::hash<std::string>{}(parameter->GetName());
-            base = HashFunction(base, paramHash);
-        }
-    }
-    return std::make_tuple(base, undefinedLambda);
-}
-
 std::size_t FingerPrintUtility::GetFingerPrintOfDefinitions(const std::vector<const KernelDefinition *> &definitions)
 {
     std::size_t base = 0;
