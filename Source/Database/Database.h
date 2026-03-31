@@ -8,6 +8,8 @@ namespace ktt
 {
 class TunerCore;
 struct Record;
+struct TuningSourceSaveUdt;
+struct TuningSourceLoadUdt;
 
 class Database
 {
@@ -25,11 +27,11 @@ public:
 
     std::unique_ptr<Record> CheckTheDatabase(const Record& data) const;
     void SaveToDatabase(const Record &record) const;
+    std::unique_ptr<TuningSourceLoadUdt> LoadBestResultsForSource(const TuningSourceSaveUdt& source) const;
 
 private:
     void OpenOrCreateDatabase() const;
     void CloseDatabase() const;
-    void CreateTableIfNotExists() const;
 
     void Save(const Record &record) const;
     std::unique_ptr<Record> Load(const Record &data) const;
