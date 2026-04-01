@@ -16,9 +16,9 @@ std::string ReadTextColumn(sqlite3_stmt* statement, const int column)
 
 } // namespace
 
-TuningSourceLoadUdt Mappers::MapSourceLoadRow(sqlite3_stmt* statement, const int columnOffset)
+TuningSourceDto Mappers::MapSourceLoadRow(sqlite3_stmt* statement, const int columnOffset)
 {
-	TuningSourceLoadUdt source;
+	TuningSourceDto source;
 	source.id = static_cast<std::size_t>(sqlite3_column_int64(statement, columnOffset + 0));
 	source.parameterFingerprint = static_cast<std::size_t>(sqlite3_column_int64(statement, columnOffset + 1));
 	source.sourceFingerprint = static_cast<std::size_t>(sqlite3_column_int64(statement, columnOffset + 2));
@@ -36,16 +36,23 @@ TuningSpaceLoadUdt Mappers::MapSpaceLoadRow(sqlite3_stmt* statement, const int c
 	return space;
 }
 
+TuningRunLoadUdt Mappers::MapRunLoadRow(sqlite3_stmt* statement, const int columnOffset)
+{
+	TuningRunLoadUdt run;
+	run.id = static_cast<std::size_t>(sqlite3_column_int64(statement, columnOffset + 0));
+	run.uuid = ReadTextColumn(statement, columnOffset + 1);
+	run.createdAt = ReadTextColumn(statement, columnOffset + 2);
+	return run;
+}
+
 std::optional<TuningResultLoadUdt> Mappers::MapResultLoadRow(sqlite3_stmt* statement, const int columnOffset,
 	std::string* parseError)
 {
 	TuningResultLoadUdt result;
 	result.id = static_cast<std::size_t>(sqlite3_column_int64(statement, columnOffset + 0));
-	result.runId = ReadTextColumn(statement, columnOffset + 1);
-	result.spaceId = static_cast<std::size_t>(sqlite3_column_int64(statement, columnOffset + 2));
-	result.duration = static_cast<std::size_t>(sqlite3_column_int64(statement, columnOffset + 3));
+	result.duration = static_cast<std::size_t>(sqlite3_column_int64(statement, columnOffset + 1));
 
-	const auto* resultJson = reinterpret_cast<const char*>(sqlite3_column_text(statement, columnOffset + 4));
+	const auto* resultJson = reinterpret_cast<const char*>(sqlite3_column_text(statement, columnOffset + 2));
 	if (resultJson != nullptr)
 	{
 		try

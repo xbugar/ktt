@@ -5,11 +5,14 @@
 
 #include <Api/KttException.h>
 #include <Database/Database.h>
-#include <Database/Record.h>
-#include <Database/Repository/StatementRepository.h>
 #include <Database/Schema/Schema.h>
 #include <Database/Schema/Udts/TuningSourceUdt.h>
 #include <Utility/Logger/Logger.h>
+
+#include <Database/Repository/Result/ResultRepository.h>
+#include <Database/Repository/Run/RunRepository.h>
+#include <Database/Repository/Space/SpaceRepository.h>
+#include <Database/Repository/Source/SourceRepository.h>
 
 namespace ktt
 {
@@ -61,99 +64,85 @@ void Database::CloseDatabase() const
     }
 }
 
-std::unique_ptr<Record> Database::CheckTheDatabase(const Record& data) const
-{
-    if (auto record = Load(data))
-    {
-        Logger::LogInfo("Matching record found in database, loading best result from previous tuning session");
-        std::cout << "Would you like to use the result from the database? (y/n): ";
-
-        char choice;
-        std::cin >> choice;
-        if (choice == 'y' || choice == 'Y' || choice == '\n')
-            return record;
-
-        return nullptr;
-    }
-    Logger::LogInfo("No matching record found in the database, proceeding with tuning");
-    return nullptr;
-}
-
-void Database::SaveToDatabase(const Record &record) const
+void Database::SaveResultsForSource(const SaveTuningsDto& source) const
 {
     OpenOrCreateDatabase();
 
-    // Check if a matching record already exists
-    auto existingRecord = Load(record);
+    auto sourceUdt = SourceRepository::SelectSourceByFingerprints(
+        m_Connection,
+        source.sourceFingerprint,
+        source.parameterFingerprint
+    );
 
-    if (!existingRecord)
+    size_t sourceId = 0;
+
+    if (sourceUdt)
     {
-        Logger::LogInfo("No existing record found. Inserting new record into database.");
-        Save(record);
-        return;
+        sourceId = sourceUdt->id;
+    }
+    else
+    {
+        sourceId = SourceRepository::CreateSource(m_Connection,
+            {
+                source.parameterFingerprint,
+                source.sourceFingerprint
+            });
     }
 
+    auto spaceUdt = SpaceRepository::SelectSpaceByFingerprint(m_Connection, sourceId, source.spaceFingerprint);
+    size_t spaceId = 0;
 
-    // Parse both JSON results to KernelResult objects for comparison
-    try
+    if (spaceUdt)
     {
-        KernelResult newResult;
-        KernelResult existingResult;
-
-        from_json(record.m_BestResult, newResult);
-        from_json(existingRecord->m_BestResult, existingResult);
-
-        const Nanoseconds newDuration = newResult.GetKernelDuration();
-        const Nanoseconds existingDuration = existingResult.GetKernelDuration();
-
-        if (newDuration >= existingDuration)
-        {
-            Logger::LogInfo("Existing result (duration: " + std::to_string(existingDuration) + " ns) is better than or equal to new result (duration: " + std::to_string(newDuration) + " ns). Keeping existing record.");
-            return;
-        }
-
-        Logger::LogInfo("New result is better (duration: " + std::to_string(newDuration) + " ns) than existing result (duration: " + std::to_string(existingDuration) + " ns). Updating database.");
-
-        StatementRepository::UpdateTuningRecord(m_Connection, record);
+        spaceId = spaceUdt->id;
     }
-    catch (const json::parse_error& e)
+    else
     {
-        Logger::LogWarning("Failed to parse JSON for comparison: " + std::string(e.what()) + ". Skipping database update.");
+        spaceId = SpaceRepository::CreateSpace(m_Connection,
+            {
+                sourceId,
+                source.spaceFingerprint
+            });
     }
-    catch (const std::exception& e)
-    {
-        Logger::LogWarning("Error during result comparison: " + std::string(e.what()) + ". Skipping database update.");
-    }
+
+    const size_t runId = RunRepository::CreateRun(m_Connection);
+    ResultRepository::CreateResults(m_Connection, runId, spaceId, source.results);
 }
 
-
-
-
-void Database::Save(const Record& record) const
+std::vector<KernelResult> Database::LoadBestResultsForSource(const LoadTuningsDto& source) const
 {
     OpenOrCreateDatabase();
 
-    StatementRepository::InsertTuningRecord(m_Connection, record);
-}
-
-std::unique_ptr<TuningSourceLoadUdt> Database::LoadBestResultsForSource(const TuningSourceSaveUdt& source) const
-{
-    OpenOrCreateDatabase();
-
-    auto sourceUdt = StatementRepository::SelectSourceByFingerprints(m_Connection, source);
+    const auto sourceUdt = SourceRepository::SelectSourceByFingerprints(m_Connection, source.sourceFingerprint,
+        source.parameterFingerprint);
     if (!sourceUdt)
     {
-        return nullptr;
+        Logger::LogInfo("No results found for this source");
+        return {};
     }
 
-    StatementRepository::SelectTopResultsForSourceId(m_Connection, sourceUdt->id, *sourceUdt);
-    return sourceUdt;
+    const auto topResults = ResultRepository::SelectTopResultsForSourceId(m_Connection, sourceUdt->id);
+    if (!topResults)
+    {
+        return {};
+    }
+
+    std::vector<KernelResult> output;
+    output.reserve(topResults->size());
+
+    for (const auto& resultUdt : *topResults)
+    {
+        try
+        {
+            output.push_back(resultUdt.result.get<KernelResult>());
+        }
+        catch (const std::exception& exception)
+        {
+            Logger::LogWarning("Failed to deserialize tuning result JSON: " + std::string(exception.what()) + ". Skipping row.");
+        }
+    }
+
+    return output;
 }
 
-std::unique_ptr<Record> Database::Load(const Record &data) const
-{
-    OpenOrCreateDatabase();
-
-    return StatementRepository::SelectTuningRecord(m_Connection, data);
-}
 } // namespace ktt

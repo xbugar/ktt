@@ -15,8 +15,9 @@ namespace ktt
 class Mappers
 {
 public:
-	static TuningSourceLoadUdt MapSourceLoadRow(sqlite3_stmt* statement, int columnOffset = 0);
+	static TuningSourceDto MapSourceLoadRow(sqlite3_stmt* statement, int columnOffset = 0);
 	static TuningSpaceLoadUdt MapSpaceLoadRow(sqlite3_stmt* statement, int columnOffset = 0);
+	static TuningRunLoadUdt MapRunLoadRow(sqlite3_stmt* statement, int columnOffset = 0);
 	static std::optional<TuningResultLoadUdt> MapResultLoadRow(sqlite3_stmt* statement, int columnOffset = 0,
 		std::string* parseError = nullptr);
 };

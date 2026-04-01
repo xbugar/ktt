@@ -234,11 +234,11 @@ int main(int argc, char** argv)
         tuner.SetProfileBasedSearcher(kernel, defaultMlModel, false);
     }
 #endif
-    const auto results = tuner.TuneWithDbCheck(kernel/*, std::make_unique<ktt::ConfigurationCount>(2)*/);
+    const auto results = tuner.TuneWithDb(kernel/*, std::make_unique<ktt::ConfigurationCount>(2)*/);
     tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::JSON);
     tuner.SaveResults(results, "CoulombSumOutput_T4", ktt::OutputFormat::JSON_T4);
     tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::XML);
-    tuner.SaveResultsToDatabase(results, kernel);
+    // tuner.SaveResultsToDatabase(results, kernel);
 
     return 0;
 }

@@ -17,7 +17,7 @@ struct SaveTuningUdt
 
 struct LoadTuningUdt
 {
-    std::vector<TuningSourceLoadUdt> sources;
+    std::vector<TuningSourceDto> sources;
 };
 
 } // namespace ktt

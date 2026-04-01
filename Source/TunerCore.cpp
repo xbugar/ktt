@@ -7,7 +7,6 @@
 #include <ComputeEngine/OpenCl/OpenClEngine.h>
 #include <ComputeEngine/Vulkan/VulkanEngine.h>
 #include <Database/Database.h>
-#include <Database/Record.h>
 #include <Output/Deserializer/JsonDeserializer.h>
 #include <Output/Deserializer/JsonT4Deserializer.h>
 #include <Output/Deserializer/XmlDeserializer.h>
@@ -275,25 +274,31 @@ std::vector<KernelResult> TunerCore::TuneKernel(const KernelId id, const KernelD
     return m_TuningRunner->Tune(kernel, dimensions, std::move(stopCondition));
 }
 
-std::vector<KernelResult> TunerCore::TuneKernelWithDbCheck(const KernelId id, const KernelDimensions& dimensions,
+std::vector<KernelResult> TunerCore::TuneKernelWithDb(const KernelId id, const KernelDimensions& dimensions,
     std::unique_ptr<StopCondition> stopCondition)
 {
     const auto& kernel = m_KernelManager->GetKernel(id);
     const auto& parameters = kernel.GetParameters();
     const auto& sources = kernel.GetDefinitions();
-    const auto y = kernel.GetConstraints();
-    const auto db = Database();
+    const auto constraints = kernel.GetConstraints();
+    const Database db;
 
-    auto rec = Record();
-    rec.m_ParameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
-    rec.m_SourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
-    rec.m_Gpu = m_ComputeEngine->GetCurrentDeviceInfo().GetName();
-    rec.m_TuningSpaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
+    auto loadDto = LoadTuningsDto();
+    loadDto.parameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
+    loadDto.sourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
 
-    if (const auto record = db.CheckTheDatabase(rec))
-        return {record->m_BestResult};
+    if (const auto dbResults = db.LoadBestResultsForSource(loadDto); !dbResults.empty())
+        return dbResults;
 
-    return m_TuningRunner->Tune(kernel, dimensions, std::move(stopCondition));
+    auto results =  m_TuningRunner->Tune(kernel, dimensions, std::move(stopCondition));
+
+    SaveTuningsDto saveDto;
+    saveDto.parameterFingerprint = loadDto.parameterFingerprint;
+    saveDto.sourceFingerprint = loadDto.sourceFingerprint;
+    saveDto.spaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
+    saveDto.results = results;
+    db.SaveResultsForSource(saveDto);
+    return results;
 }
 
 KernelResult TunerCore::TuneKernelIteration(const KernelId id, const KernelDimensions& dimensions,
@@ -407,20 +412,12 @@ void TunerCore::SaveResults(const std::vector<KernelResult>& results, const std:
 
 void TunerCore::SaveResultsToDatabase(const std::vector<KernelResult> &results, const KernelId kernelId) const
 {
-    const auto& kernel = m_KernelManager->GetKernel(kernelId);
-    const auto& parameters = kernel.GetParameters();
-    const auto& sources = kernel.GetDefinitions();
-    const auto y = kernel.GetConstraints();
-    const auto db = Database();
+    // const auto& kernel = m_KernelManager->GetKernel(kernelId);
+    // const auto& parameters = kernel.GetParameters();
+    // const auto& sources = kernel.GetDefinitions();
+    // const auto y = kernel.GetConstraints();
+    // const auto db = Database();
 
-    auto rec = Record();
-    rec.m_ParameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
-    rec.m_SourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
-    rec.m_BestResult = GetBestResult(results);
-    rec.m_Gpu = m_ComputeEngine->GetCurrentDeviceInfo().GetName();
-    rec.m_TuningSpaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
-
-    db.SaveToDatabase(rec);
 }
 
 std::vector<KernelResult> TunerCore::LoadResults(const std::string& filePath, const OutputFormat format, UserData& data) const

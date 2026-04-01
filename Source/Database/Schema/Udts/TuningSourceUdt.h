@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cstddef>
 #include <string>
 #include <vector>
+#include <optional>
 
 #include <Database/Schema/Udts/TuningSpaceUdt.h>
 
@@ -11,17 +11,17 @@ namespace ktt
 
 struct TuningSourceSaveUdt
 {
-    std::size_t parameterFingerprint;
-    std::size_t sourceFingerprint;
+    size_t parameterFingerprint;
+    size_t sourceFingerprint;
 };
 
-struct TuningSourceLoadUdt
+struct TuningSourceDto
 {
-    std::size_t id{};
-    std::size_t parameterFingerprint{};
-    std::size_t sourceFingerprint{};
+    size_t id{};
+    size_t parameterFingerprint{};
+    size_t sourceFingerprint{};
     std::string createdAt;
-    std::vector<TuningSpaceLoadUdt> spaces;
+    std::optional<std::vector<TuningSpaceLoadUdt>> spaces;
 };
 
 } // namespace ktt

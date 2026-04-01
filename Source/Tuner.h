@@ -660,8 +660,8 @@ public:
         std::unique_ptr<StopCondition> stopCondition = nullptr);
 
 
-    std::vector<KernelResult> TuneWithDbCheck(KernelId id, std::unique_ptr<StopCondition> stopCondition = nullptr);
-    std::vector<KernelResult> TuneWithDbCheck(KernelId id, const KernelDimensions &dimensions,
+    std::vector<KernelResult> TuneWithDb(KernelId id, std::unique_ptr<StopCondition> stopCondition = nullptr);
+    std::vector<KernelResult> TuneWithDb(KernelId id, const KernelDimensions &dimensions,
                                               std::unique_ptr<StopCondition> stopCondition = nullptr);
 
     /** @fn KernelResult TuneIteration(const KernelId id, const std::vector<BufferOutputDescriptor>& output,
