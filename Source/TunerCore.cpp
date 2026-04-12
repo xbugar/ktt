@@ -4,7 +4,9 @@
 #include <ComputeEngine/Cuda/CudaEngine.h>
 #include <ComputeEngine/OpenCl/OpenClEngine.h>
 #include <ComputeEngine/Vulkan/VulkanEngine.h>
+#include <ComputeEngine/Cpp/CppEngine.h>
 #include <Output/Deserializer/JsonDeserializer.h>
+#include <Output/Deserializer/JsonT4Deserializer.h>
 #include <Output/Deserializer/XmlDeserializer.h>
 #include <Output/Serializer/JsonSerializer.h>
 #include <Output/Serializer/JsonT4Serializer.h>
@@ -88,15 +90,16 @@ void TunerCore::SetLauncher(const KernelId id, KernelLauncher launcher)
     m_KernelManager->SetLauncher(id, launcher);
 }
 
-void TunerCore::AddParameter(const KernelId id, const std::string& name, const std::vector<ParameterValue>& values, const std::string& group)
+void TunerCore::AddParameter(const KernelId id, const std::string& name, const std::vector<ParameterValue>& values, const std::string& group,
+    const bool isCompilerParameter)
 {
-    m_KernelManager->AddParameter(id, name, values, group);
+    m_KernelManager->AddParameter(id, name, values, group, isCompilerParameter);
 }
 
 void TunerCore::AddScriptParameter(const KernelId id, const std::string& name, const ParameterValueType valueType, const std::string& valueScript,
-    const std::string& group)
+    const std::string& group, const bool isCompilerParameter)
 {
-    m_KernelManager->AddScriptParameter(id, name, valueType, valueScript, group);
+    m_KernelManager->AddScriptParameter(id, name, valueType, valueScript, group, isCompilerParameter);
 }
 
 void TunerCore::AddConstraint(const KernelId id, const std::vector<std::string>& parameters, ConstraintFunction function)
@@ -263,17 +266,18 @@ void TunerCore::SetReferenceArgument(const ArgumentId& id, const ArgumentId& ref
 }
 
 std::vector<KernelResult> TunerCore::TuneKernel(const KernelId id, const KernelDimensions& dimensions,
-    std::unique_ptr<StopCondition> stopCondition)
+    std::unique_ptr<StopCondition> stopCondition, const std::optional<PreciseMeasurementParameters>& preciseParams)
 {
     const auto& kernel = m_KernelManager->GetKernel(id);
-    return m_TuningRunner->Tune(kernel, dimensions, std::move(stopCondition));
+    return m_TuningRunner->Tune(kernel, dimensions, std::move(stopCondition), preciseParams);
 }
 
 KernelResult TunerCore::TuneKernelIteration(const KernelId id, const KernelDimensions& dimensions,
-    const std::vector<BufferOutputDescriptor>& output, const bool recomputeReference)
+    const std::vector<BufferOutputDescriptor>& output, const bool recomputeReference,
+    const std::optional<PreciseMeasurementParameters>& preciseParams)
 {
     const auto& kernel = m_KernelManager->GetKernel(id);
-    return m_TuningRunner->TuneIteration(kernel, dimensions, KernelRunMode::OnlineTuning, output, recomputeReference);
+    return m_TuningRunner->TuneIteration(kernel, dimensions, KernelRunMode::OnlineTuning, output, recomputeReference, preciseParams);
 }
 
 std::vector<KernelResult> TunerCore::SimulateKernelTuning(const KernelId id, const std::vector<KernelResult>& results,
@@ -445,6 +449,11 @@ void TunerCore::SetCompilerOptions(const std::string& options, const bool overri
     m_ComputeEngine->SetCompilerOptions(options, overrideDefault);
 }
 
+void TunerCore::SetCompiler(const std::string& compiler)
+{
+    m_ComputeEngine->SetCompiler(compiler);
+}
+
 void TunerCore::SetGlobalSizeType(const GlobalSizeType type)
 {
     m_ComputeEngine->SetGlobalSizeType(type);
@@ -531,6 +540,13 @@ void TunerCore::InitializeComputeEngine([[maybe_unused]] const PlatformIndex pla
         throw KttException("Support for Vulkan API is not included in this version of KTT framework");
         #endif // KTT_API_VULKAN
         break;
+    case ComputeApi::Cpp:
+        #ifdef KTT_API_CPP
+        m_ComputeEngine = std::make_unique<CppEngine>(platform, device, queueCount);
+        #else
+        throw KttException("Support for C++ API is not included in this version of KTT framework");
+        #endif // KTT_API_CPP
+        break;
     default:
         KttError("Unhandled compute API value");
     }
@@ -561,6 +577,13 @@ void TunerCore::InitializeComputeEngine(const ComputeApi api, [[maybe_unused]] c
         #else
         throw KttException("Support for Vulkan API is not included in this version of KTT framework");
         #endif // KTT_API_VULKAN
+        break;
+    case ComputeApi::Cpp:
+        #ifdef KTT_API_CPP
+        throw KttException("Support for user initializers is not yet available for C++ API");
+        #else
+        throw KttException("Support for C++ API is not included in this version of KTT framework");
+        #endif // KTT_API_CPP
         break;
     default:
         KttError("Unhandled compute API value");
@@ -598,6 +621,8 @@ std::unique_ptr<Deserializer> TunerCore::CreateDeserializer(const OutputFormat f
     {
     case OutputFormat::JSON:
         return std::make_unique<JsonDeserializer>();
+    case OutputFormat::JSON_T4:
+        return std::make_unique<JsonT4Deserializer>();
     case OutputFormat::XML:
         return std::make_unique<XmlDeserializer>();
     default:

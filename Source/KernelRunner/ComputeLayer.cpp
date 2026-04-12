@@ -30,7 +30,8 @@ void ComputeLayer::RunKernel(const KernelDefinitionId id, const DimensionVector&
 ComputeActionId ComputeLayer::RunKernelAsync(const KernelDefinitionId id, const QueueId queue)
 {
     const auto& data = GetComputeData(id);
-    return m_ComputeEngine.RunKernelAsync(data, queue);
+    const auto& preciseParams = GetData().GetPreciseMeasurementParameters();
+    return m_ComputeEngine.RunKernelAsync(data, queue, true, preciseParams);
 }
 
 ComputeActionId ComputeLayer::RunKernelAsync(const KernelDefinitionId id, const QueueId queue, const DimensionVector& globalSize,
@@ -40,7 +41,8 @@ ComputeActionId ComputeLayer::RunKernelAsync(const KernelDefinitionId id, const 
     data.SetGlobalSize(globalSize);
     data.SetLocalSize(localSize);
 
-    return m_ComputeEngine.RunKernelAsync(data, queue);
+    const auto& preciseParams = GetData().GetPreciseMeasurementParameters();
+    return m_ComputeEngine.RunKernelAsync(data, queue, true, preciseParams);
 }
 
 void ComputeLayer::WaitForComputeAction(const ComputeActionId id)
@@ -57,7 +59,8 @@ void ComputeLayer::RunKernelWithProfiling(const KernelDefinitionId id)
     }
 
     const auto& data = GetComputeData(id);
-    const auto result = m_ComputeEngine.RunKernelWithProfiling(data, GetDefaultQueue());
+    const auto& preciseParams = GetData().GetPreciseMeasurementParameters();
+    const auto result = m_ComputeEngine.RunKernelWithProfiling(data, GetDefaultQueue(), preciseParams);
     GetData().AddPartialResult(result);
 }
 
@@ -73,7 +76,8 @@ void ComputeLayer::RunKernelWithProfiling(const KernelDefinitionId id, const Dim
     data.SetGlobalSize(globalSize);
     data.SetLocalSize(localSize);
 
-    const auto result = m_ComputeEngine.RunKernelWithProfiling(data, GetDefaultQueue());
+    const auto& preciseParams = GetData().GetPreciseMeasurementParameters();
+    const auto result = m_ComputeEngine.RunKernelWithProfiling(data, GetDefaultQueue(), preciseParams);
     GetData().AddPartialResult(result);
 }
 
@@ -298,10 +302,10 @@ void ComputeLayer::GetUnifiedMemoryBufferHandle(const ArgumentId& id, UnifiedBuf
     m_ComputeEngine.GetUnifiedMemoryBufferHandle(id, memoryHandle);
 }
 
-bool ComputeLayer::GetProfiling(const KernelId id) 
+bool ComputeLayer::GetProfiling(const KernelDefinitionId id)
 {
-    //return GetData().IsProfilingEnabled(id);
-    return m_ComputeEngine.IsProfilingActive();
+    // Check both global profiling flag and per-kernel profiling status
+    return m_ComputeEngine.IsProfilingActive() && GetData().IsProfilingEnabled(id);
 }
 
 void ComputeLayer::SetActiveKernel(const KernelId id)
@@ -361,6 +365,11 @@ ComputeLayerData& ComputeLayer::GetData()
 const KernelComputeData& ComputeLayer::GetComputeData(const KernelDefinitionId id) const
 {
     return GetData().GetComputeData(id);
+}
+
+void ComputeLayer::SetPreciseMeasurementParameters(const std::optional<PreciseMeasurementParameters>& params)
+{
+    GetData().SetPreciseMeasurementParameters(params);
 }
 
 } // namespace ktt

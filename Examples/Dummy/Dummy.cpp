@@ -1,7 +1,7 @@
 /******************************************************************************
  * This is a dummy example -- it uses fairy efficient version of 3D Coulomb sum
- * but does not tune anything. 
- * The reason of existence of this example is testing stability of time and 
+ * but does not tune anything.
+ * The reason of existence of this example is testing stability of time and
  * power measurement.
  */
 
@@ -37,6 +37,9 @@ const bool randomizeSleep = true;
 // Toggle kernel profiling.
 const bool useProfiling = false;
 
+// Toggle robust power measurement (requires KTT built with --power-usage option).
+const bool useRobustPowerMeasurement = true;
+
 int main(int argc, char** argv)
 {
     ktt::PlatformIndex platformIndex = 0;
@@ -60,7 +63,8 @@ int main(int argc, char** argv)
 
     // Declare and initialize data
     const int gridSize = 256;
-    int atoms = 64;
+    //int atoms = 64;
+    int atoms = 1024;
 
     const ktt::DimensionVector ndRangeDimensions(gridSize / 32, gridSize / 4, gridSize);
     const ktt::DimensionVector workGroupDimensions(32, 4);
@@ -115,10 +119,10 @@ int main(int argc, char** argv)
 
     tuner.SetLauncher(kernel, [definition](ktt::ComputeInterface& interface)
     {
-        uint64_t sleep = sleepDuration;
+        /*uint64_t sleep = sleepDuration;
         if (randomizeSleep)
             sleep = (sleep*rand())/RAND_MAX;
-        std::this_thread::sleep_for(std::chrono::milliseconds(sleep));
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleep));*/
         interface.RunKernel(definition);
     });
 
@@ -132,15 +136,25 @@ int main(int argc, char** argv)
     const ktt::ArgumentId gridDim = tuner.AddArgumentScalar(gridSize);
     const ktt::ArgumentId gridId = tuner.AddArgumentVector(energyGrid, ktt::ArgumentAccessType::WriteOnly);
 
-    tuner.AddParameter(kernel, "DUMMY_1", std::vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8});
-    tuner.AddParameter(kernel, "DUMMY_2", std::vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8});
-    tuner.AddParameter(kernel, "DUMMY_3", std::vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8});
+    // Create a tuning space big enough to not be exhausted until TuningDuration
+    tuner.AddParameter(kernel, "DUMMY_1", std::vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    tuner.AddParameter(kernel, "DUMMY_2", std::vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    tuner.AddParameter(kernel, "DUMMY_3", std::vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    tuner.AddParameter(kernel, "DUMMY_4", std::vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
 
     tuner.SetArguments(definition, std::vector<ktt::ArgumentId>{aiId, aixId, aiyId, aizId, aiwId, aId, gsId, gridDim, gridId});
 
     tuner.SetSearcher(kernel, std::make_unique<ktt::DeterministicSearcher>());
 
-    const auto results = tuner.Tune(kernel/*, std::make_unique<ktt::ConfigurationCount>(1)*/);
+    // Configure robust measurement parameters if enabled
+    std::optional<ktt::PreciseMeasurementParameters> preciseParams;
+    if constexpr (useRobustPowerMeasurement)
+    {
+        // Minimum 2000ms, maximum 20000ms, 0.5% tolerance
+        preciseParams = ktt::PreciseMeasurementParameters(2000, 20000, 0.005, ktt::DurationCalculationMethod::Minimum);
+    }
+
+    const auto results = tuner.Tune(kernel, std::make_unique<ktt::TuningDuration>(600), preciseParams);
     tuner.SaveResults(results, "DummyOutput", ktt::OutputFormat::JSON);
     tuner.SaveResults(results, "DummyOutput", ktt::OutputFormat::XML);
 

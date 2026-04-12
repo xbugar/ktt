@@ -4,6 +4,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -28,6 +29,7 @@
 #include <Output/OutputFormat.h>
 #include <Utility/Logger/LoggingLevel.h>
 #include <KttTypes.h>
+#include <Api/Configuration/PreciseMeasurementParameters.h>
 
 // Data holders
 #include <Api/Configuration/DimensionVector.h>
@@ -230,6 +232,23 @@ public:
     template <typename T>
     void AddParameter(const KernelId id, const std::string& name, const std::vector<T>& values, const std::string& group = "");
 
+    /** @fn void AddCompilerParameter(const KernelId id, const std::string& name, const std::vector<std::string>& values = {},
+      * const std::string& group = "")
+      * Works exactly as AddParameter(), but for compiler parameters.
+      * Adds new compiler parameter for the specified kernel, providing parameter name and optionally list of allowed values.
+      * Parameters will be added to the compiler as compiler options.
+      * During the tuning process, tuner will generate configurations for combinations of kernel parameters and their values.
+      * @param id Id of kernel for which the parameter will be added.
+      * @param name Name of a parameter. Parameter names for a single kernel must be unique.
+      * @param values Optional allowed values for the parameter. Value type is a string. If left empty, parameter with be either
+      * included without any value or completely excluded.
+      * @param group Optional group inside which the parameter will be added. Tuning configurations are generated separately for each
+      * group. This is useful when kernels contain groups of parameters that can be tuned independently. In this way, the total number
+      * of generated configurations can be significantly reduced.
+      */
+    void AddCompilerParameter(const KernelId id, const std::string& name, const std::vector<std::string>& values = {},
+        const std::string& group = "");
+
     /** @fn void AddScriptParameter(const KernelId id, const std::string& name, const ParameterValueType valueType,
       * const std::string& valueScript, const std::string& group = "")
       * Adds new parameter for the specified kernel, providing parameter name, value type and a script which generates list of allowed
@@ -245,6 +264,24 @@ public:
       * of generated configurations can be significantly reduced.
       */
     void AddScriptParameter(const KernelId id, const std::string& name, const ParameterValueType valueType, const std::string& valueScript,
+        const std::string& group = "");
+
+    /** @fn void AddScriptCompilerParameter(const KernelId id, const std::string& name, const ParameterValueType valueType,
+      * const std::string& valueScript, const std::string& group = "")
+      * Works exactly as AddScriptParameter(), but for compiler parameters.
+      * Adds new compiler parameter for the specified kernel, providing parameter name, value type and a script which generates list of allowed
+      * values. Compiler parameters will be added as a compiler option. During the tuning process, tuner will
+      * generate configurations for combinations of kernel parameters and their values.
+      * @param id Id of kernel for which the parameter will be added.
+      * @param name Name of a parameter. Parameter names for a single kernel must be unique.
+      * @param valueType Type of parameter values.
+      * @param valueScript Python script which will be executed to generate a list of parameter values. The values of the tuning parameters
+      * can be utilized by the script. The default thread size can be accessed from script through variable named "defaultSize".
+      * @param group Optional group inside which the parameter will be added. Tuning configurations are generated separately for each
+      * group. This is useful when kernels contain groups of parameters that can be tuned independently. In this way, the total number
+      * of generated configurations can be significantly reduced.
+      */
+    void AddScriptCompilerParameter(const KernelId id, const std::string& name, const ParameterValueType valueType, const std::string& valueScript,
         const std::string& group = "");
 
     /** @fn void AddThreadModifier(const KernelId id, const std::vector<KernelDefinitionId>& definitionIds, const ModifierType type,
@@ -501,9 +538,9 @@ public:
     /** @fn template <typename T> ArgumentId AddArgumentSymbol(const T& data, const ArgumentId& customId = "", const std::string& symbolName = "")
       * Adds new symbol argument to the tuner.
       * @param data Kernel argument data. The data type must be trivially copyable. Bool, reference or pointer types are not supported.
+      * @param customId Custom argument id that can be specified instead of a default.
       * @param symbolName Name of the corresponding symbol in kernel source code. Only utilized when tuner is using CUDA API. The symbol
       * name must be unique.
-      * @param customId Custom argument id that can be specified instead of a default.
       * @return Id assigned to kernel argument by tuner. The id can be used in other API methods.
       */
     template <typename T>
@@ -631,20 +668,26 @@ public:
       */
     void SetReferenceArgument(const ArgumentId& id, const ArgumentId& referenceId);
 
-    /** @fn std::vector<KernelResult> Tune(const KernelId id, std::unique_ptr<StopCondition> stopCondition = nullptr)
+    /** @fn std::vector<KernelResult> Tune(const KernelId id, std::unique_ptr<StopCondition> stopCondition = nullptr,
+      * const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt)
       * Performs the tuning process for specified kernel. Creates configuration space based on combinations of provided kernel
       * parameters and constraints. The configurations will be launched in order that depends on the specified Searcher. Tuning
       * will end either when all configurations are explored or when the specified stop condition is fulfilled.
       * @param id Id of the tuned kernel.
       * @param stopCondition Condition which decides whether to continue the tuning process. If no condition is provided, tuning
       * will end when all configurations are explored. See StopCondition for more information.
+      * @param powerParams Optional parameters for robust power measurement. If not provided, kernel is executed once per configuration.
+      * If provided, robust power measurement is enabled (CUDA with NVML support only, requires --power-usage build option).
+      * Throws KttException if power measurement is requested but not supported.
       * @return Vector of results containing information about kernel computation in specific configuration. See KernelResult for
       * more information.
       */
-    std::vector<KernelResult> Tune(const KernelId id, std::unique_ptr<StopCondition> stopCondition = nullptr);
+    std::vector<KernelResult> Tune(const KernelId id, std::unique_ptr<StopCondition> stopCondition = nullptr,
+        const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt);
 
     /** @fn std::vector<KernelResult> Tune(const KernelId id, const KernelDimensions& dimensions,
-      * std::unique_ptr<StopCondition> stopCondition = nullptr)
+      * std::unique_ptr<StopCondition> stopCondition = nullptr,
+      * const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt)
       * Performs the tuning process for specified kernel. Creates configuration space based on combinations of provided kernel
       * parameters and constraints. The configurations will be launched in order that depends on the specified Searcher. Tuning
       * will end either when all configurations are explored or when the specified stop condition is fulfilled.
@@ -653,14 +696,18 @@ public:
       * definition, the sizes specified during its addition will be used.
       * @param stopCondition Condition which decides whether to continue the tuning process. If no condition is provided, tuning
       * will end when all configurations are explored. See StopCondition for more information.
+      * @param powerParams Optional parameters for robust power measurement. If not provided, kernel is executed once per configuration.
+      * If provided, robust power measurement is enabled (CUDA with NVML support only, requires --power-usage build option).
+      * Throws KttException if power measurement is requested but not supported.
       * @return Vector of results containing information about kernel computation in specific configuration. See KernelResult for
       * more information.
       */
     std::vector<KernelResult> Tune(const KernelId id, const KernelDimensions& dimensions,
-        std::unique_ptr<StopCondition> stopCondition = nullptr);
+        std::unique_ptr<StopCondition> stopCondition = nullptr,
+        const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt);
 
     /** @fn KernelResult TuneIteration(const KernelId id, const std::vector<BufferOutputDescriptor>& output,
-      * const bool recomputeReference = false)
+      * const bool recomputeReference = false, const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt)
       * Performs one step of the tuning process for specified kernel. When this method is called for the kernel for the first time,
       * it creates configuration space based on combinations of provided kernel parameters and constraints. Each time this method
       * is called, it launches a single kernel configuration. If all configurations were already launched, it runs kernel using the
@@ -671,14 +718,18 @@ public:
       * more information.
       * @param recomputeReference Flag which controls whether recomputation of reference output should be performed or not. Useful
       * if kernel data between individual method invocations change.
+      * @param powerParams Optional parameters for robust power measurement. If not provided, kernel is executed once per configuration.
+      * If provided, robust power measurement is enabled (CUDA with NVML support only, requires --power-usage build option).
+      * Throws KttException if power measurement is requested but not supported.
       * @return Result containing information about kernel computation in specific configuration. See KernelResult for more
       * information.
       */
     KernelResult TuneIteration(const KernelId id, const std::vector<BufferOutputDescriptor>& output,
-        const bool recomputeReference = false);
+        const bool recomputeReference = false, const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt);
 
     /** @fn KernelResult TuneIteration(const KernelId id, const KernelDimensions& dimensions,
-      * const std::vector<BufferOutputDescriptor>& output, const bool recomputeReference = false)
+      * const std::vector<BufferOutputDescriptor>& output, const bool recomputeReference = false,
+      * const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt)
       * Performs one step of the tuning process for specified kernel. When this method is called for the kernel for the first time,
       * it creates configuration space based on combinations of provided kernel parameters and constraints. Each time this method
       * is called, it launches a single kernel configuration. If all configurations were already launched, it runs kernel using the
@@ -691,11 +742,14 @@ public:
       * more information.
       * @param recomputeReference Flag which controls whether recomputation of reference output should be performed or not. Useful
       * if kernel data between individual method invocations change.
+      * @param powerParams Optional parameters for robust power measurement. If not provided, kernel is executed once per configuration.
+      * If provided, robust power measurement is enabled (CUDA with NVML support only, requires --power-usage build option).
+      * Throws KttException if power measurement is requested but not supported.
       * @return Result containing information about kernel computation in specific configuration. See KernelResult for more
       * information.
       */
     KernelResult TuneIteration(const KernelId id, const KernelDimensions& dimensions, const std::vector<BufferOutputDescriptor>& output,
-        const bool recomputeReference = false);
+        const bool recomputeReference = false, const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt);
 
     /** @fn std::vector<KernelResult> SimulateKernelTuning(const KernelId id, const std::vector<KernelResult>& results,
       * const uint64_t iterations = 0)
@@ -735,7 +789,7 @@ public:
       */
     void SetSearcher(const KernelId id, std::unique_ptr<Searcher> searcher);
 
-    /** @fn void SetProfileBasedSearcher(const KernelId id, const std::string& modelPath, const bool exportModule = true)
+    /** @fn void SetProfileBasedSearcher(const KernelId id, const std::string& modelPath, const bool useBuiltinModule = true, const uint batchSize = 5, const uint neighborSize = 100, const uint randomSize = 10)
       * Sets profile-based searcher to be used during kernel tuning. This is special method for profile-based searcher, for other searchers, use SetSearcher.
       * @param id Id of kernel for which searcher will be set.
       * @param modelPath Path to a ML model file containing trained model for the tuned kernel.
@@ -924,6 +978,14 @@ public:
       */
     void SetCompilerOptions(const std::string& options, const bool overrideDefault = false);
 
+    /** @fn void SetCompiler(const std::string& compiler)
+      * Sets the compiler executable to use for kernel compilation. This is only supported for the C++ backend.
+      * For CUDA, OpenCL, and Vulkan backends, this method will throw an exception since they use built-in compilers.
+      * Default compiler for C++ backend is "g++".
+      * @param compiler Path or name of the compiler executable (e.g., "g++", "clang++", "/usr/bin/clang++").
+      */
+    void SetCompiler(const std::string& compiler);
+
     /** @fn void SetGlobalSizeType(const GlobalSizeType type)
       * Sets global size specification type to specified compute API style. In OpenCL, NDrange size is specified as number
       * of work-items in a work-group multiplied by number of work-groups. In CUDA, grid size is specified as number of blocks.
@@ -1006,7 +1068,7 @@ private:
         const ArgumentMemoryLocation memoryLocation, const ArgumentAccessType accessType, const size_t dataSize,
         const ArgumentId& customId = "");
     KTT_VIRTUAL_API void AddParameterInternal(const KernelId id, const std::string& name, const std::vector<ParameterValue>& values,
-        const std::string& group);
+        const std::string& group, const bool isCompilerParameter);
 
     template <typename T>
     ArgumentDataType DeriveArgumentDataType() const;

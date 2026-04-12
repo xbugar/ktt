@@ -156,4 +156,14 @@ Nanoseconds ComputeLayerData::CalculateLauncherOverhead() const
     return result;
 }
 
+void ComputeLayerData::SetPreciseMeasurementParameters(const std::optional<PreciseMeasurementParameters>& params)
+{
+    m_PreciseMeasurementParameters = params;
+}
+
+const std::optional<PreciseMeasurementParameters>& ComputeLayerData::GetPreciseMeasurementParameters() const
+{
+    return m_PreciseMeasurementParameters;
+}
+
 } // namespace ktt

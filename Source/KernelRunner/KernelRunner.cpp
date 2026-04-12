@@ -143,6 +143,12 @@ bool KernelRunner::IsProfilingActive() const
     return m_Engine.IsProfilingActive();
 }
 
+void KernelRunner::SetPreciseMeasurementParameters(const std::optional<PreciseMeasurementParameters>& params)
+{
+    // Store the precise measurement params to be applied after kernel data is added to compute layer
+    m_PendingPreciseParams = params;
+}
+
 void KernelRunner::SetValidationMethod(const ValidationMethod method, const double toleranceThreshold)
 {
     m_Validator->SetValidationMethod(method, toleranceThreshold);
@@ -241,6 +247,13 @@ KernelResult KernelRunner::RunKernelInternal(const Kernel& kernel, const KernelC
     const KernelId id = kernel.GetId();
 
     auto activator = std::make_unique<KernelActivator>(*m_ComputeLayer, id);
+    
+    // Apply any pending precise measurement parameters now that kernel data is active
+    if (m_PendingPreciseParams.has_value())
+    {
+        m_ComputeLayer->SetPreciseMeasurementParameters(m_PendingPreciseParams);
+        m_PendingPreciseParams.reset();
+    }
     KernelResult result(kernel.GetName(), configuration, "");
 
     Timer timer;
@@ -271,7 +284,19 @@ KernelResult KernelRunner::RunKernelInternal(const Kernel& kernel, const KernelC
         DownloadBuffers(output);
     });
 
-    result.SetDataMovementOverhead(result.GetDataMovementOverhead() + dataOverhead);
+    // Measure and add L2 cache flush overhead during tuning
+    if (mode == KernelRunMode::OfflineTuning || mode == KernelRunMode::OnlineTuning)
+    {
+        const Nanoseconds flushOverhead = RunScopeTimer([this]()
+        {
+            m_Engine.FlushL2Cache(m_ComputeLayer->GetDefaultQueue());
+        });
+        result.SetDataMovementOverhead(result.GetDataMovementOverhead() + dataOverhead + flushOverhead);
+    }
+    else
+    {
+        result.SetDataMovementOverhead(result.GetDataMovementOverhead() + dataOverhead);
+    }
     m_ComputeLayer->ClearData(id);
 
     return result;
