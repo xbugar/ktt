@@ -170,7 +170,22 @@ void Tuner::AddScriptParameter(const KernelId id, const std::string& name, const
 {
     try
     {
-        m_Tuner->AddScriptParameter(id, name, valueType, valueScript, group);
+        bool isCompilerParameter = false;
+        m_Tuner->AddScriptParameter(id, name, valueType, valueScript, group, isCompilerParameter);
+    }
+    catch (const KttException& exception)
+    {
+        TunerCore::Log(LoggingLevel::Error, exception.what());
+    }
+}
+
+void Tuner::AddScriptCompilerParameter(const KernelId id, const std::string& name, const ParameterValueType valueType,
+    const std::string& valueScript, const std::string& group)
+{
+    try
+    {
+        bool isCompilerParameter = true;
+        m_Tuner->AddScriptParameter(id, name, valueType, valueScript, group, isCompilerParameter);
     }
     catch (const KttException& exception)
     {
@@ -516,17 +531,18 @@ void Tuner::SetReferenceArgument(const ArgumentId& id, const ArgumentId& referen
     }
 }
 
-std::vector<KernelResult> Tuner::Tune(const KernelId id, std::unique_ptr<StopCondition> stopCondition)
+std::vector<KernelResult> Tuner::Tune(const KernelId id, std::unique_ptr<StopCondition> stopCondition,
+    const std::optional<PreciseMeasurementParameters>& preciseParams)
 {
-    return Tune(id, {}, std::move(stopCondition));
+    return Tune(id, {}, std::move(stopCondition), preciseParams);
 }
 
 std::vector<KernelResult> Tuner::Tune(const KernelId id, const KernelDimensions& dimensions,
-    std::unique_ptr<StopCondition> stopCondition)
+    std::unique_ptr<StopCondition> stopCondition, const std::optional<PreciseMeasurementParameters>& preciseParams)
 {
     try
     {
-        return m_Tuner->TuneKernel(id, dimensions, std::move(stopCondition));
+        return m_Tuner->TuneKernel(id, dimensions, std::move(stopCondition), preciseParams);
     }
     catch (const KttException& exception)
     {
@@ -555,17 +571,18 @@ std::vector<KernelResult> Tuner::TuneWithDb(const KernelId id, const KernelDimen
 }
 
 KernelResult Tuner::TuneIteration(const KernelId id, const std::vector<BufferOutputDescriptor>& output,
-    const bool recomputeReference)
+    const bool recomputeReference, const std::optional<PreciseMeasurementParameters>& preciseParams)
 {
-    return TuneIteration(id, {}, output, recomputeReference);
+    return TuneIteration(id, {}, output, recomputeReference, preciseParams);
 }
 
 KernelResult Tuner::TuneIteration(const KernelId id, const KernelDimensions& dimensions,
-    const std::vector<BufferOutputDescriptor>& output, const bool recomputeReference)
+    const std::vector<BufferOutputDescriptor>& output, const bool recomputeReference,
+    const std::optional<PreciseMeasurementParameters>& preciseParams)
 {
     try
     {
-        return m_Tuner->TuneKernelIteration(id, dimensions, output, recomputeReference);
+        return m_Tuner->TuneKernelIteration(id, dimensions, output, recomputeReference, preciseParams);
     }
     catch (const KttException& exception)
     {
@@ -1054,12 +1071,32 @@ ArgumentId Tuner::AddUserArgument(ComputeBuffer buffer, const size_t elementSize
     }
 }
 
-void Tuner::AddParameterInternal(const KernelId id, const std::string& name, const std::vector<ParameterValue>& values,
+void Tuner::AddCompilerParameter(const KernelId id, const std::string& name, const std::vector<std::string>& values,
     const std::string& group)
+{
+    std::vector<ParameterValue> parameterValues;
+
+    for (const auto& value : values)
+    {
+        parameterValues.push_back(value);
+    }
+
+    if (parameterValues.empty())
+    {
+        parameterValues.push_back(true);
+        parameterValues.push_back(false);
+    }
+
+    bool isCompilerParameter = true;
+    AddParameterInternal(id, name, parameterValues, group, isCompilerParameter);
+}
+
+void Tuner::AddParameterInternal(const KernelId id, const std::string& name, const std::vector<ParameterValue>& values,
+    const std::string& group, const bool isCompilerParameter)
 {
     try
     {
-        m_Tuner->AddParameter(id, name, values, group);
+        m_Tuner->AddParameter(id, name, values, group, isCompilerParameter);
     }
     catch (const KttException& exception)
     {

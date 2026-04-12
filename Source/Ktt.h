@@ -14,5 +14,9 @@
 #include <Api/StopCondition/ConfigurationFraction.h>
 #include <Api/StopCondition/TuningDuration.h>
 #include <Api/StopCondition/UnionCondition.h>
+#include <Api/StopCondition/FailureCount.h>
+#include <Api/StopCondition/FailureFraction.h>
 
 #include <Api/ComputeInterface.h>
+
+#include <Api/Configuration/PreciseMeasurementParameters.h>

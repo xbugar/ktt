@@ -1,12 +1,54 @@
 #include <algorithm>
 
 #include <Kernel/KernelParameterGroup.h>
-#include <Utility/Comparators/ConstraintComparator.h>
 #include <Utility/ErrorHandling/Assert.h>
 #include <Utility/StlHelpers.h>
 
 namespace ktt
 {
+
+namespace
+{
+
+struct ParameterPointerComparator
+{
+    bool operator()(const KernelParameter* a, const KernelParameter* b) const
+    {
+        return a->GetName() < b->GetName();
+    }
+};
+
+struct ConstraintPointerComparator
+{
+    bool operator()(const KernelConstraint* a, const KernelConstraint* b) const
+    {
+        // First compare by number of parameters
+        const size_t aSize = a->GetParameters().size();
+        const size_t bSize = b->GetParameters().size();
+        if (aSize != bSize)
+        {
+            return aSize < bSize;
+        }
+        // Then compare by parameter names (sorted) to get deterministic ordering
+        // Since the number of parameters is small (typically <= 3), we can compute sorted names on the fly
+        auto getSortedNames = [](const KernelConstraint* c) -> std::vector<std::string>
+        {
+            std::vector<std::string> names;
+            names.reserve(c->GetParameters().size());
+            for (const auto* param : c->GetParameters())
+            {
+                names.push_back(param->GetName());
+            }
+            std::sort(names.begin(), names.end());
+            return names;
+        };
+        const auto aNames = getSortedNames(a);
+        const auto bNames = getSortedNames(b);
+        return aNames < bNames;
+    }
+};
+
+} // anonymous namespace
 
 KernelParameterGroup::KernelParameterGroup(const std::string& name, const std::vector<const KernelParameter*>& parameters,
     const std::vector<const KernelConstraint*>& constraints) :
@@ -48,16 +90,16 @@ bool KernelParameterGroup::ContainsParameter(const std::string& parameter) const
 
 std::vector<KernelParameterGroup> KernelParameterGroup::GenerateSubgroups() const
 {
-    std::set<const KernelParameter*> remainingParameters(m_Parameters.cbegin(), m_Parameters.cend());
+    std::set<const KernelParameter*, ParameterPointerComparator> remainingParameters(m_Parameters.cbegin(), m_Parameters.cend());
     std::set<const KernelConstraint*, ConstraintPointerComparator> remainingConstraints(m_Constraints.cbegin(), m_Constraints.cend());
-
+    
     std::vector<KernelParameterGroup> result;
     size_t subgroupNumber = 0;
 
     while (!remainingConstraints.empty())
     {
-        std::set<const KernelParameter*> currentParameters;
-        std::set<const KernelConstraint*> currentConstraints;
+        std::set<const KernelParameter*, ParameterPointerComparator> currentParameters;
+        std::set<const KernelConstraint*, ConstraintPointerComparator> currentConstraints;
         bool newAdded = true;
 
         while (newAdded)

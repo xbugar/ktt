@@ -4,9 +4,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <Api/ComputeApiInitializer.h>
+#include <Api/Configuration/PreciseMeasurementParameters.h>
 #include <ComputeEngine/Cuda/Actions/CudaComputeAction.h>
 #include <ComputeEngine/Cuda/Actions/CudaTransferAction.h>
 #include <ComputeEngine/Cuda/Buffers/CudaBuffer.h>
@@ -38,15 +40,18 @@ class CudaEngine : public ComputeEngine
 public:
     explicit CudaEngine(const DeviceIndex deviceIndex, const uint32_t queueCount);
     explicit CudaEngine(const ComputeApiInitializer& initializer, std::vector<QueueId>& assignedQueueIds);
+    ~CudaEngine();
 
     // Kernel methods
-    ComputeActionId RunKernelAsync(const KernelComputeData& data, const QueueId queueId, const bool powerMeasurementAllowed = true) override;
+    ComputeActionId RunKernelAsync(const KernelComputeData& data, const QueueId queueId, const bool powerMeasurementAllowed = true,
+        const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt) override;
     ComputationResult WaitForComputeAction(const ComputeActionId id) override;
     void ClearData(const KernelComputeId& id) override;
     void ClearKernelData(const std::string& kernelName) override;
 
     // Profiling methods
-    ComputationResult RunKernelWithProfiling(const KernelComputeData& data, const QueueId queueId) override;
+    ComputationResult RunKernelWithProfiling(const KernelComputeData& data, const QueueId queueId,
+        const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt) override;
     void SetProfilingCounters(const std::vector<std::string>& counters) override;
     bool IsProfilingSessionActive(const KernelComputeId& id) override;
     uint64_t GetRemainingProfilingRuns(const KernelComputeId& id) override;
@@ -95,6 +100,8 @@ public:
     void SetKernelCacheCapacity(const uint64_t capacity) override;
     void ClearKernelCache() override;
     void EnsureThreadContext() override;
+    void SetCompiler(const std::string& compiler) override;
+    void FlushL2Cache(const QueueId queueId) override;
 
 private:
     EngineConfiguration m_Configuration;
@@ -107,6 +114,8 @@ private:
     std::map<QueueId, std::unique_ptr<CudaStream>> m_Streams;
     std::map<ArgumentId, std::unique_ptr<CudaBuffer>> m_Buffers;
     LruCache<KernelComputeId, std::shared_ptr<CudaKernel>> m_KernelCache;
+    size_t m_L2CacheSize;
+    CUdeviceptr m_L2CacheDevicePtr;
     std::map<ComputeActionId, std::unique_ptr<CudaComputeAction>> m_ComputeActions;
     std::map<TransferActionId, std::unique_ptr<CudaTransferAction>> m_TransferActions;
 

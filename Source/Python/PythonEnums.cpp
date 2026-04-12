@@ -48,7 +48,8 @@ void InitializePythonEnums(py::module_& module)
     py::enum_<ktt::ComputeApi>(module, "ComputeApi")
         .value("OpenCL", ktt::ComputeApi::OpenCL)
         .value("CUDA", ktt::ComputeApi::CUDA)
-        .value("Vulkan", ktt::ComputeApi::Vulkan);
+        .value("Vulkan", ktt::ComputeApi::Vulkan)
+        .value("Cpp", ktt::ComputeApi::Cpp);
 
     py::enum_<ktt::DeviceType>(module, "DeviceType")
         .value("CPU", ktt::DeviceType::CPU)
@@ -138,6 +139,11 @@ void InitializePythonEnums(py::module_& module)
         .value("OfflineTuning", ktt::ValidationMode::OfflineTuning)
         .value("OnlineTuning", ktt::ValidationMode::OnlineTuning)
         .value("All", ktt::ValidationMode::All);
+
+    py::enum_<ktt::DurationCalculationMethod>(module, "DurationCalculationMethod")
+        .value("Minimum", ktt::DurationCalculationMethod::Minimum)
+        .value("Median", ktt::DurationCalculationMethod::Median)
+        .value("Average", ktt::DurationCalculationMethod::Average);
 }
 
 #endif // KTT_PYTHON

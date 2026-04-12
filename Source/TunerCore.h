@@ -38,11 +38,11 @@ public:
     KernelId CreateKernel(const std::string& name, const std::vector<KernelDefinitionId>& definitionIds, KernelLauncher launcher);
     void RemoveKernel(const KernelId id);
     void SetLauncher(const KernelId id, KernelLauncher launcher);
-    void AddParameter(const KernelId id, const std::string& name, const std::vector<ParameterValue>& values, const std::string& group);
+    void AddParameter(const KernelId id, const std::string& name, const std::vector<ParameterValue>& values, const std::string& group,
+        const bool isCompilerParameter);
     void AddScriptParameter(const KernelId id, const std::string& name, const ParameterValueType valueType, const std::string& valueScript,
-        const std::string& group);
+        const std::string& group, const bool isCompilerParameter);
     void AddConstraint(const KernelId id, const std::vector<std::string>& parameters, ConstraintFunction function);
-    void AddConstraint(const KernelId id, const std::vector<std::string>& parameters, ConstraintFunction function, std::string imprint);
     void AddGenericConstraint(const KernelId id, const std::vector<std::string>& parameters, GenericConstraintFunction function);
     void AddScriptConstraint(const KernelId id, const std::vector<std::string>& parameters, const std::string& script);
     void AddThreadModifier(const KernelId id, const std::vector<KernelDefinitionId>& definitionIds, const ModifierType type,
@@ -88,11 +88,10 @@ public:
     void SetReferenceArgument(const ArgumentId& id, const ArgumentId& referenceId);
 
     // Kernel tuning and configurations
-    std::vector<KernelResult> TuneKernel(const KernelId id, const KernelDimensions& dimensions, std::unique_ptr<StopCondition> stopCondition);
-    std::vector<KernelResult> TuneKernelWithDb(KernelId id, const KernelDimensions &dimensions,
-                                                    std::unique_ptr<StopCondition> stopCondition);
+    std::vector<KernelResult> TuneKernel(const KernelId id, const KernelDimensions& dimensions, std::unique_ptr<StopCondition> stopCondition,
+        const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt);
     KernelResult TuneKernelIteration(const KernelId id, const KernelDimensions& dimensions, const std::vector<BufferOutputDescriptor>& output,
-        const bool recomputeReference);
+        const bool recomputeReference, const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt);
     std::vector<KernelResult> SimulateKernelTuning(const KernelId id, const std::vector<KernelResult>& results,
         std::unique_ptr<StopCondition> stopCondition);
     void SetSearcher(const KernelId id, std::unique_ptr<Searcher> searcher);
@@ -124,6 +123,7 @@ public:
     void SynchronizeDevice();
     void SetProfilingCounters(const std::vector<std::string>& counters);
     void SetCompilerOptions(const std::string& options, const bool overrideDefault = false);
+    void SetCompiler(const std::string& compiler);
     void SetGlobalSizeType(const GlobalSizeType type);
     void SetAutomaticGlobalSizeCorrection(const bool flag);
     void SetKernelCacheCapacity(const uint64_t capacity);

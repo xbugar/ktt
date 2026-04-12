@@ -16,7 +16,8 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ComputeApi,
 {
     {ComputeApi::OpenCL, "OpenCL"},
     {ComputeApi::CUDA, "CUDA"},
-    {ComputeApi::Vulkan, "Vulkan"}
+    {ComputeApi::Vulkan, "Vulkan"},
+    {ComputeApi::Cpp, "C++"}
 });
 
 NLOHMANN_JSON_SERIALIZE_ENUM(GlobalSizeType,
@@ -50,7 +51,8 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ParameterValueType,
     {ParameterValueType::Double, "Double"},
     {ParameterValueType::Float, "Float"},
     {ParameterValueType::Bool, "Bool"},
-    {ParameterValueType::String, "String"}
+    {ParameterValueType::String, "String"},
+    {ParameterValueType::CompilerParameter, "CompilerParameter"}
 });
 
 NLOHMANN_JSON_SERIALIZE_ENUM(ProfilingCounterType,

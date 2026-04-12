@@ -1,5 +1,7 @@
 #ifdef KTT_API_CUDA
 
+#include <algorithm>
+#include <cmath>
 #include <numeric>
 
 #include <Api/KttException.h>
@@ -14,6 +16,7 @@
 #include <Utility/Timer/Timer.h>
 #include <Utility/StlHelpers.h>
 #include <Utility/StringUtility.h>
+#include <Utility/MeasurementUtility.h>
 
 #ifdef KTT_PROFILING_CUPTI_LEGACY
 #include <ComputeEngine/Cuda/CuptiLegacy/CuptiSubscription.h>
@@ -25,6 +28,9 @@
 #include <ComputeEngine/Cuda/Nvml/NvmlPowerSubscription.h>
 #endif // KTT_POWER_USAGE_NVML
 
+#include <iostream>
+
+
 namespace ktt
 {
 
@@ -32,7 +38,9 @@ CudaEngine::CudaEngine(const DeviceIndex deviceIndex, const uint32_t queueCount)
     m_Configuration(GlobalSizeType::CUDA),
     m_DeviceIndex(deviceIndex),
     m_DeviceInfo(0, ""),
-    m_KernelCache(10)
+    m_KernelCache(10),
+    m_L2CacheSize(0),
+    m_L2CacheDevicePtr(0)
 {
     Logger::LogDebug("Initializing CUDA");
     CheckError(cuInit(0), "cuInit");
@@ -45,6 +53,16 @@ CudaEngine::CudaEngine(const DeviceIndex deviceIndex, const uint32_t queueCount)
     }
 
     m_Context = std::make_unique<CudaContext>(devices[deviceIndex]);
+
+    // Detect L2 cache size and allocate flush buffer
+    int l2CacheSize = 0;
+    CheckError(cuDeviceGetAttribute(&l2CacheSize, CU_DEVICE_ATTRIBUTE_L2_CACHE_SIZE, m_Context->GetDevice()), "cuDeviceGetAttribute");
+    if (l2CacheSize > 0)
+    {
+        m_L2CacheSize = static_cast<size_t>(l2CacheSize);
+        CheckError(cuMemAlloc(&m_L2CacheDevicePtr, m_L2CacheSize), "cuMemAlloc");
+        Logger::LogDebug("Allocated L2 cache flush buffer of size " + std::to_string(m_L2CacheSize));
+    }
 
     for (uint32_t i = 0; i < queueCount; ++i)
     {
@@ -68,10 +86,23 @@ CudaEngine::CudaEngine(const DeviceIndex deviceIndex, const uint32_t queueCount)
 
 CudaEngine::CudaEngine(const ComputeApiInitializer& initializer, std::vector<QueueId>& assignedQueueIds) :
     m_Configuration(GlobalSizeType::CUDA),
+    m_DeviceIndex(0),
     m_DeviceInfo(0, ""),
-    m_KernelCache(10)
+    m_KernelCache(10),
+    m_L2CacheSize(0),
+    m_L2CacheDevicePtr(0)
 {
     m_Context = std::make_unique<CudaContext>(initializer.GetContext());
+
+    // Detect L2 cache size and allocate flush buffer
+    int l2CacheSize = 0;
+    CheckError(cuDeviceGetAttribute(&l2CacheSize, CU_DEVICE_ATTRIBUTE_L2_CACHE_SIZE, m_Context->GetDevice()), "cuDeviceGetAttribute");
+    if (l2CacheSize > 0)
+    {
+        m_L2CacheSize = static_cast<size_t>(l2CacheSize);
+        CheckError(cuMemAlloc(&m_L2CacheDevicePtr, m_L2CacheSize), "cuMemAlloc");
+        Logger::LogDebug("Allocated L2 cache flush buffer of size " + std::to_string(m_L2CacheSize));
+    }
 
     const auto devices = CudaDevice::GetAllDevices();
 
@@ -107,8 +138,42 @@ CudaEngine::CudaEngine(const ComputeApiInitializer& initializer, std::vector<Que
 #endif // KTT_POWER_USAGE_NVML
 }
 
-ComputeActionId CudaEngine::RunKernelAsync(const KernelComputeData& data, const QueueId queueId, const bool powerMeasurementAllowed)
+CudaEngine::~CudaEngine()
 {
+    if (m_L2CacheDevicePtr != 0)
+    {
+        CheckError(cuMemFree(m_L2CacheDevicePtr), "cuMemFree");
+    }
+}
+
+void CudaEngine::FlushL2Cache(const QueueId queueId)
+{
+    if (m_L2CacheSize == 0 || m_L2CacheDevicePtr == 0)
+    {
+        return;
+    }
+
+    if (!ContainsKey(m_Streams, queueId))
+    {
+        throw KttException("Invalid stream index: " + std::to_string(queueId));
+    }
+
+    CudaStream& stream = *m_Streams[queueId];
+    CheckError(cuMemsetD8Async(m_L2CacheDevicePtr, 0, m_L2CacheSize, stream.GetStream()), "cuMemsetD8Async");
+    CheckError(cuStreamSynchronize(stream.GetStream()), "cuStreamSynchronize");
+}
+
+ComputeActionId CudaEngine::RunKernelAsync(const KernelComputeData& data, const QueueId queueId, const bool powerMeasurementAllowed,
+    const std::optional<PreciseMeasurementParameters>& preciseParams)
+{
+    // Silence warning about unused parameter when KTT_POWER_USAGE_NVML is not defined
+    (void)powerMeasurementAllowed;
+    (void)preciseParams;
+
+#ifndef KTT_POWER_USAGE_NVML
+    // When power measurement is not available, preciseParams is used for stable timing only
+    // No exception is thrown - the parameters are used for timing stabilization
+#endif
     if (!ContainsKey(m_Streams, queueId))
     {
         throw KttException("Invalid stream index: " + std::to_string(queueId));
@@ -125,6 +190,8 @@ ComputeActionId CudaEngine::RunKernelAsync(const KernelComputeData& data, const 
     Timer timer;
     timer.Start();
 
+    m_Configuration.SetTuningCompilerOptions(data.GetCompilerOptions());
+
     auto kernel = LoadKernel(data);
     std::vector<CUdeviceptr*> arguments = GetKernelArguments(data.GetArguments());
     const size_t sharedMemorySize = GetSharedMemorySize(data.GetArguments());
@@ -140,65 +207,139 @@ ComputeActionId CudaEngine::RunKernelAsync(const KernelComputeData& data, const 
     timer.Stop();
 
 #if defined(KTT_POWER_USAGE_NVML)
+    // Power measurement is available - use full functionality
     std::unique_ptr<NvmlPowerSubscription> subscription;
-    if (powerMeasurementAllowed) {
-        subscription = std::make_unique<NvmlPowerSubscription>(*m_PowerManager);
-        //uint64_t energyBegin = m_PowerManager->GetTotalDeviceEnergy();
-    }
-#if defined(KTT_POWER_USAGE_NVML_KERNEL_MINTIME)
-    Timer pwrTimer;
-    pwrTimer.Start();
     std::vector<uint32_t> sumPwr;
     std::vector<double> sumTemp;
     std::vector<uint32_t> sumSMFreq;
     std::vector<uint32_t> sumMemFreq;
-#endif // KTT_POWER_USAGE_NVML_KERNEL_REPS_EXPERIMENTAL
-#endif // KTT_POWER_USAGE_NVML
+    std::vector<int32_t> sumFanSpeed;
+    if (powerMeasurementAllowed) {
+        subscription = std::make_unique<NvmlPowerSubscription>(*m_PowerManager);
+        //uint64_t energyBegin = m_PowerManager->GetTotalDeviceEnergy();
+    }
+    // Robust power measurement timer - only used when preciseParams is provided
+    Timer pwrTimer;
+    if (powerMeasurementAllowed && preciseParams.has_value())
+    {
+        pwrTimer.Start();
+    }
     
     auto action = kernel->Launch(stream, data.GetGlobalSize(), data.GetLocalSize(), arguments, sharedMemorySize);
-#if defined(KTT_POWER_USAGE_NVML) 
-#if defined(KTT_POWER_USAGE_NVML_KERNEL_MINTIME)
-    if (powerMeasurementAllowed) {
+    // Track number of iterations for power measurement (default: 1 for simple measurement)
+    int consideredIters = 1;
+    // Robust power measurement - run kernel multiple times until power stabilizes
+    // This is only done when powerMeasurementAllowed and preciseParams is provided
+    if (powerMeasurementAllowed && preciseParams.has_value())
+    {
+        action->WaitForFinish();
+        std::vector<ktt::Nanoseconds> durationSamples;
+        durationSamples.push_back(action->GetDuration());
+        consideredIters = 0;
         unsigned long long execs = 1;
-        while (pwrTimer.GetCheckpointTime() < (long long)KTT_POWER_USAGE_NVML_KERNEL_MINTIME*(long long)1000000) {
-            kernel->Launch(stream, data.GetGlobalSize(), data.GetLocalSize(), arguments, sharedMemorySize);
-            sumPwr.push_back(m_PowerManager->GetPowerUsage());
-            sumTemp.push_back(m_PowerManager->GetTemperature());
-            sumSMFreq.push_back(m_PowerManager->GetSMFrequency());
-            sumMemFreq.push_back(m_PowerManager->GetMemoryFrequency());
-            execs++;
-        }
-        pwrTimer.Stop();
-        action->SetDurationFromMultirun(pwrTimer.GetElapsedTime() / execs);
-    }
-#endif // KTT_POWER_USAGE_NVML_KERNEL_REPS_EXPERIMENTAL
-#endif // KTT_POWER_USAGE_NVML
-
-
-#if defined(KTT_POWER_USAGE_NVML)
-    if (powerMeasurementAllowed) {
-        action->WaitForFinish(); //XXX enforcing sync here to get better power result
+        bool looping = true;
+        const auto& params = preciseParams.value();
+        
+        // Collect first power sample after initial kernel execution
         sumPwr.push_back(m_PowerManager->GetPowerUsage());
         sumTemp.push_back(m_PowerManager->GetTemperature());
         sumSMFreq.push_back(m_PowerManager->GetSMFrequency());
         sumMemFreq.push_back(m_PowerManager->GetMemoryFrequency());
-        //uint64_t energyEnd = m_PowerManager->GetTotalDeviceEnergy();
-        /*const uint32_t powerUsage = m_PowerManager->GetPowerUsage();
+        sumFanSpeed.push_back(m_PowerManager->GetFanSpeed());
+        
+        while (looping) {
+            auto a = kernel->Launch(stream, data.GetGlobalSize(), data.GetLocalSize(), arguments, sharedMemorySize);
+            a->WaitForFinish();
+            durationSamples.push_back(a->GetDuration());
+            sumPwr.push_back(m_PowerManager->GetPowerUsage());
+            sumTemp.push_back(m_PowerManager->GetTemperature());
+            sumSMFreq.push_back(m_PowerManager->GetSMFrequency());
+            sumMemFreq.push_back(m_PowerManager->GetMemoryFrequency());
+            sumFanSpeed.push_back(m_PowerManager->GetFanSpeed());
+            execs++;
+
+            // decide whether loop or stop
+            // While we haven't reached minTime OR we have fewer than 2 considered iterations,
+            // we increment consideredIters and continue looping
+            if ((pwrTimer.GetCheckpointTime() < (unsigned long)params.minTimeMs * (unsigned long)1000000) || (consideredIters < 2)) {
+                consideredIters++;
+            }
+            else {
+                // the smallest amount of time already passed, check whether we are over the maximal budget
+                if (pwrTimer.GetCheckpointTime() > (unsigned long)params.maxTimeMs * (unsigned long)1000000) {
+                    Logger::LogWarning("The power measuring budget has been exhausted without reaching target precision.");
+                    looping = false;
+                }
+                else {
+                    // check whether we are precise enough
+                    // Only check the last 'consideredIters' samples for stability
+                    looping = false;
+                    int powerAverage = std::accumulate(sumPwr.cend()-consideredIters, sumPwr.cend(), 0) / consideredIters;
+                    for (auto i = sumPwr.cend()-consideredIters; i != sumPwr.cend(); i++) {
+                        if ((double)std::abs((int)*i-powerAverage)/(double)powerAverage > params.maxPowerDiff)
+                            looping = true;
+                    }
+                }
+            }
+        }
+        pwrTimer.Stop();
+
+        // Calculate duration and standard deviation using utility methods
+        const auto measurementResult = PreciseMeasurementParameters::ComputeDurationAndStdev(
+            durationSamples, params.durationCalculationMethod);
+        
+        action->SetDurationFromMultirun(measurementResult.duration);
+        action->SetDurationStdev(measurementResult.standardDeviation);
+
+        Logger::LogInfo("Power has been measured from " + std::to_string(consideredIters) + " kernel runs (out of " + std::to_string(execs) + " runs)");
+    }
+
+    if (powerMeasurementAllowed) {
+        // Simple power measurement (single execution) - used when preciseParams is NOT provided
+        if (!preciseParams.has_value())
+        {
+            action->WaitForFinish();
+            sumPwr.push_back(m_PowerManager->GetPowerUsage());
+            sumTemp.push_back(m_PowerManager->GetTemperature());
+            sumSMFreq.push_back(m_PowerManager->GetSMFrequency());
+            sumMemFreq.push_back(m_PowerManager->GetMemoryFrequency());
+            sumFanSpeed.push_back(m_PowerManager->GetFanSpeed());
+        }
+        const uint32_t powerUsage = static_cast<uint32_t>(std::accumulate(sumPwr.cend()-consideredIters, sumPwr.cend(), 0)) / static_cast<uint32_t>(consideredIters);
         action->SetPowerUsage(powerUsage);
-        const double temperature = m_PowerManager->GetTemperature();
+        const double temperature = std::accumulate(sumTemp.cend()-consideredIters, sumTemp.cend(), 0) / static_cast<double>(consideredIters);
         action->SetTemperature(temperature);
-        const uint32_t smFrequency = m_PowerManager->GetSMFrequency();
+        const uint32_t smFrequency = static_cast<uint32_t>(std::accumulate(sumSMFreq.cend()-consideredIters, sumSMFreq.cend(), 0)) / static_cast<uint32_t>(consideredIters);
         action->SetSMFrequency(smFrequency);
-        const uint32_t memFrequency = m_PowerManager->GetMemoryFrequency();
-        action->SetMemoryFrequency(memFrequency);*/
-        const uint32_t powerUsage = static_cast<uint32_t>(std::accumulate(sumPwr.cbegin(), sumPwr.cend(), 0)) / static_cast<uint32_t>(sumPwr.size());
-        action->SetPowerUsage(powerUsage);
-        const double temperature = std::accumulate(sumTemp.cbegin(), sumTemp.cend(), 0) / static_cast<double>(sumTemp.size());
-        action->SetTemperature(temperature);
-        const uint32_t smFrequency = static_cast<uint32_t>(std::accumulate(sumSMFreq.cbegin(), sumSMFreq.cend(), 0)) / static_cast<uint32_t>(sumSMFreq.size());
-        action->SetSMFrequency(smFrequency);
-        const uint32_t memFrequency = static_cast<uint32_t>(std::accumulate(sumMemFreq.cbegin(), sumMemFreq.cend(), 0)) / static_cast<uint32_t>(sumMemFreq.size());
+        const uint32_t memFrequency = static_cast<uint32_t>(std::accumulate(sumMemFreq.cend()-consideredIters, sumMemFreq.cend(), 0)) / static_cast<uint32_t>(consideredIters);
         action->SetMemoryFrequency(memFrequency);
+        // Calculate average fan speed (if first sample is -1, fan speed is not supported)
+        int32_t fanSpeed = -1;
+        if (!sumFanSpeed.empty() && sumFanSpeed[0] != -1)
+        {
+            fanSpeed = static_cast<int32_t>(std::accumulate(sumFanSpeed.cend()-consideredIters, sumFanSpeed.cend(), 0)) / static_cast<int32_t>(consideredIters);
+        }
+        action->SetFanSpeed(fanSpeed);
+    }
+#else
+    // Power measurement is NOT available - use preciseParams for stable timing only
+    auto action = kernel->Launch(stream, data.GetGlobalSize(), data.GetLocalSize(), arguments, sharedMemorySize);
+    
+    if (preciseParams.has_value())
+    {
+        // Execute kernel multiple times for stable timing measurement using utility
+        const auto& params = preciseParams.value();
+        const auto result = MeasurementUtility::ExecuteWithStableTiming(
+            [&]() -> Nanoseconds {
+                auto a = kernel->Launch(stream, data.GetGlobalSize(), data.GetLocalSize(), arguments, sharedMemorySize);
+                a->WaitForFinish();
+                return a->GetDuration();
+            },
+            params,
+            "CUDA");
+        
+        action->SetDurationFromMultirun(result.duration);
+        action->SetDurationStdev(result.standardDeviation);
     }
 #endif // KTT_POWER_USAGE_NVML
 
@@ -253,7 +394,8 @@ void CudaEngine::ClearKernelData(const std::string& kernelName)
 #endif // KTT_PROFILING_CUPTI_LEGACY || KTT_PROFILING_CUPTI
 }
 
-ComputationResult CudaEngine::RunKernelWithProfiling([[maybe_unused]] const KernelComputeData& data, [[maybe_unused]] const QueueId queueId)
+ComputationResult CudaEngine::RunKernelWithProfiling([[maybe_unused]] const KernelComputeData& data,
+    [[maybe_unused]] const QueueId queueId, [[maybe_unused]] const std::optional<PreciseMeasurementParameters>& preciseParams)
 {
 #ifdef KTT_PROFILING_CUPTI_LEGACY
 
@@ -279,7 +421,9 @@ ComputationResult CudaEngine::RunKernelWithProfiling([[maybe_unused]] const Kern
 
     timer.Stop();
 
-    const auto actionId = RunKernelAsync(data, queueId, newProfiling);
+    // On the first profiling run, pass preciseParams to enable robust measurement
+    // On subsequent runs, pass nullopt to avoid re-running measurement
+    const auto actionId = RunKernelAsync(data, queueId, newProfiling, newProfiling ? preciseParams : std::nullopt);
     auto& action = *m_ComputeActions[actionId];
     action.IncreaseOverhead(timer.GetElapsedTime());
     ComputationResult result = WaitForComputeAction(actionId);
@@ -321,9 +465,11 @@ ComputationResult CudaEngine::RunKernelWithProfiling([[maybe_unused]] const Kern
 
     timer.Stop();
 
-    const auto actionId = RunKernelAsync(data, queueId, newProfiling);
+    // On the first profiling run, pass preciseParams to enable robust measurement
+    // On subsequent runs, pass nullopt to avoid re-running measurement
+    const auto actionId = RunKernelAsync(data, queueId, newProfiling, newProfiling ? preciseParams : std::nullopt);
     auto& action = *m_ComputeActions[actionId];
-    action.IncreaseOverhead(timer.GetElapsedTime()); 
+    action.IncreaseOverhead(timer.GetElapsedTime());
     ComputationResult result = WaitForComputeAction(actionId);
     
     if (!instance.HasValidKernelDuration())
@@ -790,8 +936,17 @@ void CudaEngine::SetCompilerOptions(const std::string& options, const bool overr
         finalOptions += GetDefaultCompilerOptions();
     }
 
-    m_Configuration.SetCompilerOptions(finalOptions);
+    m_Configuration.SetStaticCompilerOptions(finalOptions);
     ClearKernelCache();
+}
+
+void CudaEngine::SetCompiler(const std::string& compiler)
+{
+    // CUDA uses NVRTC (NVIDIA Runtime Compilation library), not an external compiler.
+    // The compiler is built into the CUDA driver and cannot be changed.
+    (void)compiler;
+    throw KttException("Setting a custom compiler is not supported for CUDA backend. "
+                       "CUDA uses the built-in NVRTC library for kernel compilation.");
 }
 
 void CudaEngine::SetGlobalSizeType(const GlobalSizeType type)

@@ -2,7 +2,9 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
+#include <Api/Configuration/PreciseMeasurementParameters.h>
 #include <Api/Output/KernelResult.h>
 #include <Api/ComputeInterface.h>
 #include <ComputeEngine/ComputeEngine.h>
@@ -66,7 +68,7 @@ public:
     void ClearBuffer(const ArgumentId& id) override;
     bool HasBuffer(const ArgumentId& id) override;
     void GetUnifiedMemoryBufferHandle(const ArgumentId& id, UnifiedBufferMemory& memoryHandle) override;
-    bool GetProfiling(const KernelId id) override;
+    bool GetProfiling(const KernelDefinitionId id) override;
 
     void SetActiveKernel(const KernelId id);
     void ClearActiveKernel();
@@ -77,6 +79,8 @@ public:
         const KernelRunMode mode);
     void ClearData(const KernelId id);
     KernelResult GenerateResult(const KernelId id, const Nanoseconds launcherDuration) const;
+
+    void SetPreciseMeasurementParameters(const std::optional<PreciseMeasurementParameters>& params);
 
 private:
     std::map<KernelId, std::unique_ptr<ComputeLayerData>> m_Data;

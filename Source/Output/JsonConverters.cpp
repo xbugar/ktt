@@ -72,6 +72,9 @@ void to_json(json& j, const ParameterPair& pair)
     case ParameterValueType::String:
         j["Value"] = pair.GetValueString();
         break;
+    case ParameterValueType::CompilerParameter:
+        j["Value"] = pair.GetValueString();
+        break;
     default:
         KttError("Unhandled parameter value type");
     }
@@ -120,6 +123,21 @@ void from_json(const json& j, ParameterPair& pair)
         std::string valueString;
         j.at("Value").get_to(valueString);
         pair = ParameterPair(name, valueString);
+        break;
+    }
+    case ParameterValueType::CompilerParameter:
+    {
+        bool isCompilerParameter = true;
+        std::string valueString;
+        j.at("Value").get_to(valueString);
+        if (valueString == "set" || valueString == "notSet")
+        {
+            pair = ParameterPair(name, valueString == "set", isCompilerParameter);
+        }
+        else
+        {
+            pair = ParameterPair(name, valueString, isCompilerParameter);
+        }
         break;
     }
     default:
@@ -287,6 +305,16 @@ void to_json(json& j, const ComputationResult& result)
     {
         j["MemoryFrequency"] = result.GetMemoryFrequency();
     }
+
+    if (result.HasFanSpeedData())
+    {
+        j["FanSpeed"] = result.GetFanSpeed();
+    }
+
+    if (result.HasDurationStdevData())
+    {
+        j["DurationStdev"] = time.ConvertFromNanosecondsDouble(result.GetDurationStdev());
+    }
 }
 
 void from_json(const json& j, ComputationResult& result)
@@ -363,6 +391,13 @@ void from_json(const json& j, ComputationResult& result)
         uint32_t frequency;
         j.at("MemoryFrequency").get_to(frequency);
         result.SetMemoryFrequency(frequency);
+    }
+
+    if (j.contains("FanSpeed"))
+    {
+        int32_t fanSpeed;
+        j.at("FanSpeed").get_to(fanSpeed);
+        result.SetFanSpeed(fanSpeed);
     }
 }
 

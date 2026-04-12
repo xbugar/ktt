@@ -4,9 +4,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <Api/ComputeApiInitializer.h>
+#include <Api/Configuration/PreciseMeasurementParameters.h>
 #include <ComputeEngine/OpenCl/Actions/OpenClComputeAction.h>
 #include <ComputeEngine/OpenCl/Actions/OpenClTransferAction.h>
 #include <ComputeEngine/OpenCl/Buffers/OpenClBuffer.h>
@@ -32,15 +34,18 @@ class OpenClEngine : public ComputeEngine
 public:
     explicit OpenClEngine(const PlatformIndex platformIndex, const DeviceIndex deviceIndex, const uint32_t queueCount);
     explicit OpenClEngine(const ComputeApiInitializer& initializer, std::vector<QueueId>& assignedQueueIds);
+    ~OpenClEngine();
 
     // Kernel methods
-    ComputeActionId RunKernelAsync(const KernelComputeData& data, const QueueId queueId, const bool powerMeasurementAllowed = false) override;
+    ComputeActionId RunKernelAsync(const KernelComputeData& data, const QueueId queueId, const bool powerMeasurementAllowed = false,
+        const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt) override;
     ComputationResult WaitForComputeAction(const ComputeActionId id) override;
     void ClearData(const KernelComputeId& id) override;
     void ClearKernelData(const std::string& kernelName) override;
 
     // Profiling methods
-    ComputationResult RunKernelWithProfiling(const KernelComputeData& data, const QueueId queueId) override;
+    ComputationResult RunKernelWithProfiling(const KernelComputeData& data, const QueueId queueId,
+        const std::optional<PreciseMeasurementParameters>& preciseParams = std::nullopt) override;
     void SetProfilingCounters(const std::vector<std::string>& counters) override;
     bool IsProfilingSessionActive(const KernelComputeId& id) override;
     uint64_t GetRemainingProfilingRuns(const KernelComputeId& id) override;
@@ -89,6 +94,8 @@ public:
     void SetKernelCacheCapacity(const uint64_t capacity) override;
     void ClearKernelCache() override;
     void EnsureThreadContext() override;
+    void SetCompiler(const std::string& compiler) override;
+    void FlushL2Cache(const QueueId queueId) override;
 
 private:
     EngineConfiguration m_Configuration;
@@ -102,6 +109,8 @@ private:
     std::map<QueueId, std::unique_ptr<OpenClCommandQueue>> m_Queues;
     std::map<ArgumentId, std::unique_ptr<OpenClBuffer>> m_Buffers;
     LruCache<KernelComputeId, std::shared_ptr<OpenClKernel>> m_KernelCache;
+    size_t m_L2CacheSize;
+    cl_mem m_L2CacheBuffer;
     std::map<ComputeActionId, std::unique_ptr<OpenClComputeAction>> m_ComputeActions;
     std::map<TransferActionId, std::unique_ptr<OpenClTransferAction>> m_TransferActions;
 

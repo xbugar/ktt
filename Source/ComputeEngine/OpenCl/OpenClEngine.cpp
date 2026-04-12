@@ -11,6 +11,9 @@
 #include <Utility/Timer/Timer.h>
 #include <Utility/StlHelpers.h>
 #include <Utility/StringUtility.h>
+#include <Utility/MeasurementUtility.h>
+#include <numeric>
+#include <cmath>
 
 #if defined(KTT_PROFILING_GPA) || defined(KTT_PROFILING_GPA_LEGACY)
 #include <ComputeEngine/OpenCl/Gpa/GpaPass.h>
@@ -24,7 +27,9 @@ OpenClEngine::OpenClEngine(const PlatformIndex platformIndex, const DeviceIndex 
     m_PlatformIndex(platformIndex),
     m_DeviceIndex(deviceIndex),
     m_DeviceInfo(0, ""),
-    m_KernelCache(10)
+    m_KernelCache(10),
+    m_L2CacheSize(0),
+    m_L2CacheBuffer(nullptr)
 {
     const auto platforms = OpenClPlatform::GetAllPlatforms();
 
@@ -44,6 +49,26 @@ OpenClEngine::OpenClEngine(const PlatformIndex platformIndex, const DeviceIndex 
     const auto& device = devices[static_cast<size_t>(deviceIndex)];
     m_Context = std::make_unique<OpenClContext>(platform, device);
 
+    // Detect L2 cache size and allocate flush buffer
+    cl_ulong l2CacheSize = 0;
+    clGetDeviceInfo(device.GetId(), CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, sizeof(l2CacheSize), &l2CacheSize, nullptr);
+    if (l2CacheSize > 0)
+    {
+        m_L2CacheSize = static_cast<size_t>(l2CacheSize);
+        cl_int error = CL_SUCCESS;
+        m_L2CacheBuffer = clCreateBuffer(m_Context->GetContext(), CL_MEM_READ_WRITE, m_L2CacheSize, nullptr, &error);
+        if (error != CL_SUCCESS)
+        {
+            Logger::LogWarning("Failed to allocate L2 cache flush buffer: " + std::to_string(error));
+            m_L2CacheSize = 0;
+            m_L2CacheBuffer = nullptr;
+        }
+        else
+        {
+            Logger::LogDebug("Allocated L2 cache flush buffer of size " + std::to_string(m_L2CacheSize));
+        }
+    }
+
     for (uint32_t i = 0; i < queueCount; ++i)
     {
         const QueueId id = m_QueueIdGenerator.GenerateId();
@@ -60,8 +85,12 @@ OpenClEngine::OpenClEngine(const PlatformIndex platformIndex, const DeviceIndex 
 
 OpenClEngine::OpenClEngine(const ComputeApiInitializer& initializer, std::vector<QueueId>& assignedQueueIds) :
     m_Configuration(GlobalSizeType::OpenCL),
+    m_PlatformIndex(0),
+    m_DeviceIndex(0),
     m_DeviceInfo(0, ""),
-    m_KernelCache(10)
+    m_KernelCache(10),
+    m_L2CacheSize(0),
+    m_L2CacheBuffer(nullptr)
 {
     m_Context = std::make_unique<OpenClContext>(initializer.GetContext());
 
@@ -88,6 +117,27 @@ OpenClEngine::OpenClEngine(const ComputeApiInitializer& initializer, std::vector
         }
     }
 
+    // Detect L2 cache size and allocate flush buffer
+    const auto& device = devices[static_cast<size_t>(m_DeviceIndex)];
+    cl_ulong l2CacheSize = 0;
+    clGetDeviceInfo(device.GetId(), CL_DEVICE_GLOBAL_MEM_CACHE_SIZE, sizeof(l2CacheSize), &l2CacheSize, nullptr);
+    if (l2CacheSize > 0)
+    {
+        m_L2CacheSize = static_cast<size_t>(l2CacheSize);
+        cl_int error = CL_SUCCESS;
+        m_L2CacheBuffer = clCreateBuffer(m_Context->GetContext(), CL_MEM_READ_WRITE, m_L2CacheSize, nullptr, &error);
+        if (error != CL_SUCCESS)
+        {
+            Logger::LogWarning("Failed to allocate L2 cache flush buffer: " + std::to_string(error));
+            m_L2CacheSize = 0;
+            m_L2CacheBuffer = nullptr;
+        }
+        else
+        {
+            Logger::LogDebug("Allocated L2 cache flush buffer of size " + std::to_string(m_L2CacheSize));
+        }
+    }
+
     const auto& queues = initializer.GetQueues();
 
     for (auto& queue : queues)
@@ -105,8 +155,46 @@ OpenClEngine::OpenClEngine(const ComputeApiInitializer& initializer, std::vector
 #endif // KTT_PROFILING_GPA || KTT_PROFILING_GPA_LEGACY
 }
 
-ComputeActionId OpenClEngine::RunKernelAsync(const KernelComputeData& data, const QueueId queueId, const bool powerMeasurementAllowed)
+OpenClEngine::~OpenClEngine()
 {
+    if (m_L2CacheBuffer != nullptr)
+    {
+        clReleaseMemObject(m_L2CacheBuffer);
+    }
+}
+
+void OpenClEngine::FlushL2Cache(const QueueId queueId)
+{
+    if (m_L2CacheSize == 0 || m_L2CacheBuffer == nullptr)
+    {
+        return;
+    }
+
+    if (!ContainsKey(m_Queues, queueId))
+    {
+        throw KttException("Invalid queue index: " + std::to_string(queueId));
+    }
+
+    OpenClCommandQueue& queue = *m_Queues[queueId];
+    const cl_command_queue clQueue = queue.GetQueue();
+    
+    // Fill buffer with zeros to flush L2 cache
+    const cl_int pattern = 0;
+    cl_int error = clEnqueueFillBuffer(clQueue, m_L2CacheBuffer, &pattern, sizeof(pattern), 0, m_L2CacheSize, 0, nullptr, nullptr);
+    if (error != CL_SUCCESS)
+    {
+        Logger::LogWarning("Failed to flush L2 cache: " + std::to_string(error));
+    }
+}
+
+ComputeActionId OpenClEngine::RunKernelAsync(const KernelComputeData& data, const QueueId queueId, const bool powerMeasurementAllowed,
+    const std::optional<PreciseMeasurementParameters>& preciseParams)
+{
+    // Silence warning about unused parameter
+    (void)powerMeasurementAllowed;
+
+    // OpenCL does not support power measurement, but preciseParams can be used for stable timing
+    // No exception is thrown - the parameters are used for timing stabilization if provided
     if (!ContainsKey(m_Queues, queueId))
     {
         throw KttException("Invalid queue index: " + std::to_string(queueId));
@@ -123,6 +211,8 @@ ComputeActionId OpenClEngine::RunKernelAsync(const KernelComputeData& data, cons
     Timer timer;
     timer.Start();
 
+    m_Configuration.SetTuningCompilerOptions(data.GetCompilerOptions());
+
     auto kernel = LoadKernel(data);
     SetKernelArguments(*kernel, data.GetArguments());
 
@@ -138,6 +228,23 @@ ComputeActionId OpenClEngine::RunKernelAsync(const KernelComputeData& data, cons
     timer.Stop();
 
     auto action = kernel->Launch(queue, data.GetGlobalSize(), data.GetLocalSize());
+
+    // OpenCL does not support power measurement, but preciseParams can be used for stable timing
+    if (preciseParams.has_value())
+    {
+        const auto& params = preciseParams.value();
+        const auto result = MeasurementUtility::ExecuteWithStableTiming(
+            [&]() -> Nanoseconds {
+                auto a = kernel->Launch(queue, data.GetGlobalSize(), data.GetLocalSize());
+                a->WaitForFinish();
+                return a->GetDuration();
+            },
+            params,
+            "OpenCL");
+        
+        action->SetDurationFromMultirun(result.duration);
+        action->SetDurationStdev(result.standardDeviation);
+    }
 
     action->IncreaseOverhead(timer.GetElapsedTime());
     action->IncreaseCompilationOverhead(timer.GetElapsedTime());
@@ -190,16 +297,18 @@ void OpenClEngine::ClearKernelData(const std::string& kernelName)
 }
 
 ComputationResult OpenClEngine::RunKernelWithProfiling([[maybe_unused]] const KernelComputeData& data,
-    [[maybe_unused]] const QueueId queueId)
+    [[maybe_unused]] const QueueId queueId, [[maybe_unused]] const std::optional<PreciseMeasurementParameters>& preciseParams)
 {
 #if defined(KTT_PROFILING_GPA) || defined(KTT_PROFILING_GPA_LEGACY)
     Timer timer;
     timer.Start();
 
     const auto id = data.GetUniqueIdentifier();
+    bool newProfiling = false;
 
     if (!IsProfilingSessionActive(id))
     {
+        newProfiling = true;
         InitializeProfiling(id);
     }
 
@@ -208,6 +317,9 @@ ComputationResult OpenClEngine::RunKernelWithProfiling([[maybe_unused]] const Ke
 
     timer.Stop();
 
+    // Note: OpenCL does not support power measurement, so powerParams is ignored
+    // The parameter is kept for interface consistency with other compute engines
+    (void)powerParams;
     const auto actionId = RunKernelAsync(data, queueId);
     auto& action = *m_ComputeActions[actionId];
     action.IncreaseOverhead(timer.GetElapsedTime());
@@ -650,8 +762,17 @@ GlobalSizeType OpenClEngine::GetGlobalSizeType() const
 
 void OpenClEngine::SetCompilerOptions(const std::string& options, [[maybe_unused]] const bool overrideDefault)
 {
-    m_Configuration.SetCompilerOptions(options);
+    m_Configuration.SetStaticCompilerOptions(options);
     ClearKernelCache();
+}
+
+void OpenClEngine::SetCompiler(const std::string& compiler)
+{
+    // OpenCL uses the device driver's built-in compiler via clBuildProgram().
+    // The compiler is determined by the OpenCL implementation and cannot be changed.
+    (void)compiler;
+    throw KttException("Setting a custom compiler is not supported for OpenCL backend. "
+                       "OpenCL uses the device driver's built-in compiler.");
 }
 
 void OpenClEngine::SetGlobalSizeType(const GlobalSizeType type)

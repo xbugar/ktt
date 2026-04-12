@@ -63,9 +63,19 @@ void CudaComputeAction::SetMemoryFrequency(const uint32_t memoryFrequency)
     m_MemoryFrequency = memoryFrequency;
 }
 
+void CudaComputeAction::SetFanSpeed(const int32_t fanSpeed)
+{
+    m_FanSpeed = fanSpeed;
+}
+
 void CudaComputeAction::SetDurationFromMultirun(const Nanoseconds duration)
 {
     m_MultirunDuration = duration;
+}
+
+void CudaComputeAction::SetDurationStdev(const double durationStdev)
+{
+    m_DurationStdev = durationStdev;
 }
 
 void CudaComputeAction::WaitForFinish()
@@ -153,6 +163,16 @@ ComputationResult CudaComputeAction::GenerateResult() const
     if (m_MemoryFrequency.has_value())
     {
         result.SetMemoryFrequency(m_MemoryFrequency.value());
+    }
+
+    if (m_FanSpeed.has_value())
+    {
+        result.SetFanSpeed(m_FanSpeed.value());
+    }
+
+    if (m_DurationStdev.has_value())
+    {
+        result.SetDurationStdev(m_DurationStdev.value());
     }
 
     return result;
