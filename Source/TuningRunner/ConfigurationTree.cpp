@@ -1,8 +1,10 @@
+#include <functional>
+#include <stack>
+
 #include <Api/KttException.h>
 #include <TuningRunner/ConfigurationTree.h>
 #include <Utility/ErrorHandling/Assert.h>
 #include <Utility/FingerPrint/FingerPrintUtility.h>
-#include <stack>
 
 namespace ktt
 {
@@ -113,6 +115,13 @@ size_t ConfigurationTree::GetConfigurationFingerprint() const
         stack.push({m_Root.get(), 0});
     }
 
+    std::vector<const KernelParameter*> levelToParameter(GetDepth() + 1, nullptr);
+
+    for (const auto& pair : m_ParameterToLevel)
+    {
+        levelToParameter[pair.second] = pair.first;
+    }
+
     while (!stack.empty())
     {
         auto [node, level] = stack.top();
@@ -126,6 +135,17 @@ size_t ConfigurationTree::GetConfigurationFingerprint() const
 
         // Hash the number of children
         result = FingerPrintUtility::HashFunction(result, node->GetChildrenCount());
+
+        if (level > 0)
+        {
+            KttAssert(level < levelToParameter.size(), "Invalid parameter level for node");
+            const auto *parameter = levelToParameter[level];
+            KttAssert(parameter != nullptr, "Missing kernel parameter for node level");
+            KttAssert(node->GetIndex() < parameter->GetValuesCount(), "Invalid node index for parameter values");
+
+            const std::string value = parameter->GeneratePair(node->GetIndex()).GetValueString();
+            result = FingerPrintUtility::HashFunction(result, std::hash<std::string>{}(value));
+        }
 
         // Add all children to the stack in reverse order
         // (to maintain consistent left-to-right traversal order)

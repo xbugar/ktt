@@ -1,5 +1,8 @@
 #include <TunerCore.h>
+#include <cctype>
 #include <fstream>
+#include <iostream>
+#include <limits>
 
 #include <Api/KttException.h>
 #include <ComputeEngine/Cuda/CudaEngine.h>
@@ -384,14 +387,36 @@ void TunerCore::SaveResults(const std::vector<KernelResult>& results, const std:
     serializer->SerializeResults(metadata, results, data, outputStream);
 }
 
-void TunerCore::SaveResultsToDatabase(const std::vector<KernelResult> &results, const KernelId kernelId) const
+void TunerCore::SaveResultsToDatabase(const std::vector<KernelResult> &results, const KernelId id) const
 {
-    // const auto& kernel = m_KernelManager->GetKernel(kernelId);
-    // const auto& parameters = kernel.GetParameters();
-    // const auto& sources = kernel.GetDefinitions();
-    // const auto y = kernel.GetConstraints();
-    // const auto db = Database();
+    if (results.empty())
+    {
+        throw KttException("Unable to save results to database because input vector is empty");
+    }
 
+    const auto& kernel = m_KernelManager->GetKernel(id);
+    const auto& parameters = kernel.GetParameters();
+    const auto& sources = kernel.GetDefinitions();
+    const auto constraints = kernel.GetConstraints();
+    const Database db;
+    const auto deviceInfo = GetCurrentDeviceInfo();
+
+    SaveTuningsDto s;
+    {
+        s.parameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
+        s.sourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
+        s.spaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
+        s.computeApi = m_ComputeEngine->GetComputeApi();
+        s.device.Name = deviceInfo.GetName();
+        s.device.Vendor = deviceInfo.GetVendor();
+        s.device.Type = deviceInfo.GetDeviceTypeString();
+        s.device.Extensions = deviceInfo.GetExtensions();
+        s.device.cudaComputeCapabilityMajor = static_cast<int>(deviceInfo.GetCudaComputeCapabilityMajor());
+        s.device.cudaComputeCapabilityMinor = static_cast<int>(deviceInfo.GetCudaComputeCapabilityMinor());
+        s.results = results;
+    }
+
+    db.SaveResultsForSource(s);
 }
 
 std::vector<KernelResult> TunerCore::LoadResults(const std::string& filePath, const OutputFormat format, UserData& data) const
@@ -414,6 +439,36 @@ std::vector<KernelResult> TunerCore::LoadResults(const std::string& filePath, co
     }
 
     return pair.second;
+}
+
+std::vector<KernelResult> TunerCore::LoadResultsFromDatabase(const KernelId id, const int limit) const
+{
+    const auto& kernel = m_KernelManager->GetKernel(id);
+
+    const auto& parameters = kernel.GetParameters();
+    const auto& sources = kernel.GetDefinitions();
+    const auto constraints = kernel.GetConstraints();
+    const Database db;
+
+    const auto deviceInfo = GetCurrentDeviceInfo();
+
+    LoadTuningsDto l;
+    {
+        l.parameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
+        l.sourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
+        l.spaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
+        l.computeApi = m_ComputeEngine->GetComputeApi();
+        l.limit = limit;
+        {
+            l.device.Name = deviceInfo.GetName();
+            l.device.Type = deviceInfo.GetDeviceTypeString();
+            l.device.Extensions = deviceInfo.GetExtensions();
+            l.device.cudaComputeCapabilityMajor = deviceInfo.GetCudaComputeCapabilityMajor();
+            l.device.cudaComputeCapabilityMinor = deviceInfo.GetCudaComputeCapabilityMinor();
+        }
+    }
+
+    return db.LoadBestResultsForSource(l);
 }
 
 QueueId TunerCore::AddComputeQueue(ComputeQueue queue)

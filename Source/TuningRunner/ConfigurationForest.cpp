@@ -2,6 +2,7 @@
 #include <TuningRunner/ConfigurationForest.h>
 #include <Utility/ErrorHandling/Assert.h>
 #include <Utility/StlHelpers.h>
+#include <Utility/FingerPrint/FingerPrintUtility.h>
 
 namespace ktt
 {
@@ -128,9 +129,8 @@ size_t ConfigurationForest::GetConfigurationFingerprint() const
 
     for (const auto& tree : m_Trees)
     {
-        result ^= tree->GetConfigurationFingerprint();
+        result = FingerPrintUtility::HashFunction(result, tree->GetConfigurationFingerprint());
     }
-
     return result;
 }
 

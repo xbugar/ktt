@@ -3,27 +3,11 @@
 #include <Api/KttException.h>
 #include <Database/Repository/Space/SpaceRepository.h>
 #include <Database/Schema/Mappers.h>
+#include <Database/Repository/Utility.h>
 
 namespace ktt
 {
 
-namespace
-{
-
-sqlite3_stmt* PrepareStatement(sqlite3* connection, const char* sql, const char* errorPrefix)
-{
-    sqlite3_stmt* statement = nullptr;
-    const int result = sqlite3_prepare_v2(connection, sql, -1, &statement, nullptr);
-
-    if (result != SQLITE_OK)
-    {
-        throw KttException(std::string(errorPrefix) + sqlite3_errmsg(connection), ExceptionReason::Database);
-    }
-
-    return statement;
-}
-
-} // namespace
 
 std::unique_ptr<TuningSpaceLoadUdt> SpaceRepository::SelectSpaceByFingerprint(sqlite3* connection, const size_t sourceId,
     const size_t spaceFingerprint)
@@ -35,7 +19,7 @@ std::unique_ptr<TuningSpaceLoadUdt> SpaceRepository::SelectSpaceByFingerprint(sq
         LIMIT 1
     )";
 
-    sqlite3_stmt* spaceStmt = PrepareStatement(connection, spaceSQL, "Failed to prepare space SELECT statement: ");
+    sqlite3_stmt* spaceStmt = DatabaseUtility::PrepareStatement(connection, spaceSQL, "Failed to prepare space SELECT statement: ");
     sqlite3_bind_int64(spaceStmt, 1, static_cast<sqlite3_int64>(sourceId));
     sqlite3_bind_int64(spaceStmt, 2, static_cast<sqlite3_int64>(spaceFingerprint));
 
@@ -54,7 +38,7 @@ std::unique_ptr<TuningSpaceLoadUdt> SpaceRepository::SelectSpaceByFingerprint(sq
         throw KttException("Failed to execute space SELECT statement: " + error, ExceptionReason::Database);
     }
 
-    auto output = std::make_unique<TuningSpaceLoadUdt>(Mappers::MapSpaceLoadRow(spaceStmt));
+    auto output = std::make_unique<TuningSpaceLoadUdt>(TuningSpaceLoadUdt::FromRow(spaceStmt));
     sqlite3_finalize(spaceStmt);
 
     return output;
@@ -67,7 +51,7 @@ size_t SpaceRepository::CreateSpace(sqlite3* connection, const TuningSpaceSaveUd
         VALUES (?, ?)
     )";
 
-    sqlite3_stmt* spaceStmt = PrepareStatement(connection, spaceSQL, "Failed to prepare space INSERT statement: ");
+    sqlite3_stmt* spaceStmt = DatabaseUtility::PrepareStatement(connection, spaceSQL, "Failed to prepare space INSERT statement: ");
     sqlite3_bind_int64(spaceStmt, 1, static_cast<sqlite3_int64>(space.sourceId));
     sqlite3_bind_int64(spaceStmt, 2, static_cast<sqlite3_int64>(space.spaceFingerprint));
 

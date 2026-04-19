@@ -5,27 +5,24 @@
 
 #include <Api/KttException.h>
 #include <Database/Database.h>
+#include <Database/Repository/Device/DeviceRepository.h>
+#include <Database/Repository/Result/ResultRepository.h>
+#include <Database/Repository/Run/RunRepository.h>
+#include <Database/Repository/Source/SourceRepository.h>
+#include <Database/Repository/Space/SpaceRepository.h>
 #include <Database/Schema/Schema.h>
 #include <Database/Schema/Udts/TuningSourceUdt.h>
 #include <Utility/Logger/Logger.h>
 
-#include <Database/Repository/Result/ResultRepository.h>
-#include <Database/Repository/Run/RunRepository.h>
-#include <Database/Repository/Space/SpaceRepository.h>
-#include <Database/Repository/Source/SourceRepository.h>
-
 namespace ktt
 {
 
-Database::Database() :
-    m_Connection(nullptr)
+Database::Database() : m_Connection(nullptr)
 {
     m_DatabasePath = std::filesystem::path(std::getenv("HOME")) / ".local/share/ktt";
 }
 
-Database::Database(std::filesystem::path databasePath) :
-    m_DatabasePath(std::move(databasePath)),
-    m_Connection(nullptr)
+Database::Database(std::filesystem::path databasePath) : m_DatabasePath(std::move(databasePath)), m_Connection(nullptr)
 {
 }
 
@@ -64,11 +61,11 @@ void Database::CloseDatabase() const
     }
 }
 
-void Database::SaveResultsForSource(const SaveTuningsDto& source) const
+void Database::SaveResultsForSource(const SaveTuningsDto &source) const
 {
     OpenOrCreateDatabase();
 
-    auto sourceUdt = SourceRepository::SelectSourceByFingerprints(
+    auto sourceUdt = SourceRepository::SelectSourceByFingerprint(
         m_Connection,
         source.sourceFingerprint,
         source.parameterFingerprint
@@ -79,14 +76,14 @@ void Database::SaveResultsForSource(const SaveTuningsDto& source) const
     if (sourceUdt)
     {
         sourceId = sourceUdt->id;
-    }
-    else
+        Logger::LogInfo("Using existing tuning source with id " + std::to_string(sourceId));
+    } else
     {
-        sourceId = SourceRepository::CreateSource(m_Connection,
-            {
-                source.parameterFingerprint,
-                source.sourceFingerprint
-            });
+        sourceId = SourceRepository::CreateSource(
+            m_Connection,
+            {source.parameterFingerprint, source.sourceFingerprint}
+        );
+        Logger::LogInfo("Created new tuning source with id " + std::to_string(sourceId));
     }
 
     auto spaceUdt = SpaceRepository::SelectSpaceByFingerprint(m_Connection, sourceId, source.spaceFingerprint);
@@ -95,54 +92,62 @@ void Database::SaveResultsForSource(const SaveTuningsDto& source) const
     if (spaceUdt)
     {
         spaceId = spaceUdt->id;
-    }
-    else
+        Logger::LogInfo("Using existing tuning space with id " + std::to_string(spaceId));
+    } else
     {
-        spaceId = SpaceRepository::CreateSpace(m_Connection,
-            {
-                sourceId,
-                source.spaceFingerprint
-            });
+        spaceId = SpaceRepository::CreateSpace(m_Connection, {sourceId, source.spaceFingerprint});
+        Logger::LogInfo("Created new tuning space with id " + std::to_string(spaceId));
     }
 
-    const size_t runId = RunRepository::CreateRun(m_Connection);
-    ResultRepository::CreateResults(m_Connection, runId, spaceId, source.results);
+    const size_t deviceId = DeviceRepository::GetOrCreateDevice(
+        m_Connection,
+        source.computeApi,
+        {
+            source.device.Name,
+            source.device.Vendor,
+            source.device.Type,
+            source.device.Extensions,
+            source.device.cudaComputeCapabilityMajor,
+            source.device.cudaComputeCapabilityMinor
+        }
+    );
+
+    const size_t runId = RunRepository::CreateRun(m_Connection, spaceId, deviceId);
+    ResultRepository::CreateResults(m_Connection, runId, source.results);
 }
 
-std::vector<KernelResult> Database::LoadBestResultsForSource(const LoadTuningsDto& source) const
+std::vector<KernelResult> Database::LoadBestResultsForSource(const LoadTuningsDto &source) const
 {
     OpenOrCreateDatabase();
 
-    const auto sourceUdt = SourceRepository::SelectSourceByFingerprints(m_Connection, source.sourceFingerprint,
-        source.parameterFingerprint);
+    const auto sourceUdt = SourceRepository::SelectSourceByFingerprint(
+        m_Connection,
+        source.sourceFingerprint,
+        source.parameterFingerprint
+    );
+
     if (!sourceUdt)
     {
         Logger::LogInfo("No results found for this source");
         return {};
     }
 
-    const auto topResults = ResultRepository::SelectTopResultsForSourceId(m_Connection, sourceUdt->id);
-    if (!topResults)
+    if (source.computeApi == ComputeApi::Cpp)
     {
+        Logger::LogInfo("No database compatibility matching for C++ compute API");
         return {};
     }
 
-    std::vector<KernelResult> output;
-    output.reserve(topResults->size());
-
-    for (const auto& resultUdt : *topResults)
-    {
-        try
+    return ResultRepository::SelectCompatibleBestResultsForSourceId(
+        m_Connection,
+        sourceUdt->id,
         {
-            output.push_back(resultUdt.result.get<KernelResult>());
+            source.computeApi,
+            source.device.Extensions,
+            source.device.cudaComputeCapabilityMajor,
+            source.limit
         }
-        catch (const std::exception& exception)
-        {
-            Logger::LogWarning("Failed to deserialize tuning result JSON: " + std::string(exception.what()) + ". Skipping row.");
-        }
-    }
-
-    return output;
+    );
 }
 
 } // namespace ktt

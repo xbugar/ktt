@@ -3,6 +3,7 @@
 
 #include <Api/KttException.h>
 #include <Database/Repository/Result/ResultRepository.h>
+#include <Database/Repository/Utility.h>
 #include <Database/Schema/Mappers.h>
 #include <Database/Schema/Udts/TuningSourceUdt.h>
 #include <Utility/Logger/Logger.h>
@@ -10,42 +11,26 @@
 namespace ktt
 {
 
-namespace
-{
-
-sqlite3_stmt* PrepareStatement(sqlite3* connection, const char* sql, const char* errorPrefix)
-{
-    sqlite3_stmt* statement = nullptr;
-    const int result = sqlite3_prepare_v2(connection, sql, -1, &statement, nullptr);
-
-    if (result != SQLITE_OK)
-    {
-        throw KttException(std::string(errorPrefix) + sqlite3_errmsg(connection), ExceptionReason::Database);
-    }
-
-    return statement;
-}
-
-} // namespace
-
-void ResultRepository::CreateResults(sqlite3* connection, const size_t runId, const size_t spaceId,
-    const std::vector<KernelResult>& results)
+void ResultRepository::CreateResults(sqlite3* connection, const size_t runId, const std::vector<KernelResult>& results)
 {
     const char* resultSql = R"(
-        INSERT INTO tuning_result (run_id, space_id, duration, result)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO tuning_result (run_id, duration, result)
+        VALUES (?, ?, ?)
     )";
 
-    sqlite3_stmt* resultStmt = PrepareStatement(connection, resultSql, "Failed to prepare result INSERT statement: ");
+    sqlite3_stmt* resultStmt = DatabaseUtility::PrepareStatement(
+        connection,
+        resultSql,
+        "Failed to prepare result INSERT statement: "
+    );
 
     for (const auto& result : results)
     {
         const auto jsonResult = json(result).dump();
 
         sqlite3_bind_int64(resultStmt, 1, static_cast<sqlite3_int64>(runId));
-        sqlite3_bind_int64(resultStmt, 2, static_cast<sqlite3_int64>(spaceId));
-        sqlite3_bind_int64(resultStmt, 3, static_cast<sqlite3_int64>(result.GetKernelDuration()));
-        sqlite3_bind_text(resultStmt, 4, jsonResult.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(resultStmt, 2, static_cast<sqlite3_int64>(result.GetKernelDuration()));
+        sqlite3_bind_text(resultStmt, 3, jsonResult.c_str(), -1, SQLITE_TRANSIENT);
 
         const int executeResult = sqlite3_step(resultStmt);
 
@@ -63,78 +48,129 @@ void ResultRepository::CreateResults(sqlite3* connection, const size_t runId, co
     sqlite3_finalize(resultStmt);
 }
 
-
-std::unique_ptr<std::vector<TuningResultLoadUdt>>
-ResultRepository::SelectTopResultsForSourceId(sqlite3 *connection, const std::size_t sourceId,
-                                                 const std::size_t limit)
+std::vector<KernelResult> ResultRepository::SelectCompatibleBestResultsForSourceId(
+    sqlite3* connection,
+    const size_t sourceId,
+    const CompatibleResultQuery& query)
 {
-    auto topResults = std::make_unique<std::vector<TuningResultLoadUdt>>();
-
-    const char* resultsSQL = R"(
-        WITH ranked_results AS
-        (
-            SELECT
-                tr.id,
-                tr.run_id,
-                tr.space_id,
-                tr.duration,
-                tr.result,
-                ROW_NUMBER() OVER (PARTITION BY tr.run_id ORDER BY tr.duration ASC, tr.id ASC) AS rank_in_run
-            FROM tuning_result tr
-            INNER JOIN tuning_space ts ON ts.id = tr.space_id
-            WHERE ts.source_id = ?
-        )
+    const char* openClSql = R"(
         SELECT
-            ts.id,
-            ts.source_id,
-            ts.space_fingerprint,
-            ts.created_at,
-            trn.id,
-            trn.uuid,
-            trn.created_at,
-            rr.id,
-            rr.duration,
-            rr.result
-        FROM ranked_results rr
-        INNER JOIN tuning_space ts ON ts.id = rr.space_id
-        INNER JOIN tuning_run trn ON trn.id = rr.run_id
-        WHERE rr.rank_in_run = 1
-        ORDER BY rr.duration ASC, rr.id ASC
+            tr.id,
+            tr.duration,
+            tr.result
+        FROM tuning_result tr
+        INNER JOIN tuning_run trn ON trn.id = tr.run_id
+        INNER JOIN tuning_space ts ON ts.id = trn.space_id
+        INNER JOIN device d ON d.id = trn.architecture_id
+        INNER JOIN device_open_cl docl ON docl.device_id = d.id
+        WHERE ts.source_id = ?
+          AND docl.extensions = ?
+        ORDER BY tr.duration ASC, tr.id ASC
         LIMIT ?
     )";
 
-    sqlite3_stmt* resultsStmt = PrepareStatement(connection, resultsSQL, "Failed to prepare best results SELECT statement: ");
-    sqlite3_bind_int64(resultsStmt, 1, static_cast<sqlite3_int64>(sourceId));
-    sqlite3_bind_int64(resultsStmt, 2, static_cast<sqlite3_int64>(limit));
+    const char* cudaSql = R"(
+        SELECT
+            tr.id,
+            tr.duration,
+            tr.result
+        FROM tuning_result tr
+        INNER JOIN tuning_run trn ON trn.id = tr.run_id
+        INNER JOIN tuning_space ts ON ts.id = trn.space_id
+        INNER JOIN device d ON d.id = trn.architecture_id
+        INNER JOIN device_cuda dc ON dc.device_id = d.id
+        WHERE ts.source_id = ?
+          AND dc.version_major = ?
+        ORDER BY tr.duration ASC, tr.id ASC
+        LIMIT ?
+    )";
 
-    int result = SQLITE_OK;
+    const char* vulkanSql = R"(
+        SELECT
+            tr.id,
+            tr.duration,
+            tr.result
+        FROM tuning_result tr
+        INNER JOIN tuning_run trn ON trn.id = tr.run_id
+        INNER JOIN tuning_space ts ON ts.id = trn.space_id
+        INNER JOIN device d ON d.id = trn.architecture_id
+        INNER JOIN device_vulkan dv ON dv.device_id = d.id
+        WHERE ts.source_id = ?
+          AND dv.extensions = ?
+        ORDER BY tr.duration ASC, tr.id ASC
+        LIMIT ?
+    )";
 
-    while ((result = sqlite3_step(resultsStmt)) == SQLITE_ROW)
+    auto executeQuery = [&](const char* sql, const auto& bindApiSpecificValue) -> std::vector<KernelResult>
     {
-        std::string parseError;
-        auto mappedResult = Mappers::MapResultLoadRow(resultsStmt, 7, &parseError);
-        if (!mappedResult.has_value())
+        sqlite3_stmt* statement = DatabaseUtility::PrepareStatement(
+            connection,
+            sql,
+            "Failed to prepare compatible results SELECT statement: "
+        );
+
+        sqlite3_bind_int64(statement, 1, static_cast<sqlite3_int64>(sourceId));
+        bindApiSpecificValue(statement);
+        sqlite3_bind_int64(statement, 3, static_cast<sqlite3_int64>(query.limit));
+
+        std::vector<KernelResult> output;
+        int result = SQLITE_OK;
+
+        while ((result = sqlite3_step(statement)) == SQLITE_ROW)
         {
-            Logger::LogWarning("Failed to parse tuning result JSON: " + parseError + ". Skipping row.");
-            continue;
+            const auto* resultJson = reinterpret_cast<const char*>(sqlite3_column_text(statement, 2));
+
+            if (resultJson == nullptr)
+            {
+                Logger::LogWarning("Missing tuning result JSON in database row. Skipping row.");
+                continue;
+            }
+
+            try
+            {
+                output.push_back(json::parse(resultJson).get<KernelResult>());
+            }
+            catch (const std::exception& exception)
+            {
+                Logger::LogWarning(
+                    "Failed to deserialize tuning result JSON: " + std::string(exception.what()) + ". Skipping row."
+                );
+            }
         }
 
-        mappedResult->tuningSpace = Mappers::MapSpaceLoadRow(resultsStmt, 0);
-        mappedResult->tuningRun = Mappers::MapRunLoadRow(resultsStmt, 4);
-        topResults->push_back(std::move(mappedResult.value()));
-    }
+        if (result != SQLITE_DONE)
+        {
+            const std::string error = sqlite3_errmsg(connection);
+            sqlite3_finalize(statement);
+            throw KttException("Failed to execute compatible results SELECT statement: " + error, ExceptionReason::Database);
+        }
 
-    if (result != SQLITE_DONE)
+        sqlite3_finalize(statement);
+        return output;
+    };
+
+    switch (query.computeApi)
     {
-        std::string error = sqlite3_errmsg(connection);
-        sqlite3_finalize(resultsStmt);
-        throw KttException("Failed to execute best results SELECT statement: " + error, ExceptionReason::Database);
+        case ComputeApi::OpenCL:
+            return executeQuery(openClSql, [&](sqlite3_stmt* statement)
+            {
+                sqlite3_bind_text(statement, 2, query.deviceExtensions.c_str(), -1, SQLITE_TRANSIENT);
+            });
+        case ComputeApi::CUDA:
+            return executeQuery(cudaSql, [&](sqlite3_stmt* statement)
+            {
+                sqlite3_bind_int(statement, 2, query.cudaComputeCapabilityMajor);
+            });
+        case ComputeApi::Vulkan:
+            return executeQuery(vulkanSql, [&](sqlite3_stmt* statement)
+            {
+                sqlite3_bind_text(statement, 2, query.deviceExtensions.c_str(), -1, SQLITE_TRANSIENT);
+            });
+        case ComputeApi::Cpp:
+            return {};
     }
 
-    sqlite3_finalize(resultsStmt);
-    return topResults;
+    return {};
 }
 
 } // namespace ktt
-
-

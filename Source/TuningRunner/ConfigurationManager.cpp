@@ -117,8 +117,6 @@ size_t ConfigurationManager::GetConfigurationFingerprint(const KernelId id) cons
     }
 
     return m_ConfigurationData.find(id)->second->GetConfigurationFingerprint();
-
-    return 0;
 }
 
 } // namespace ktt

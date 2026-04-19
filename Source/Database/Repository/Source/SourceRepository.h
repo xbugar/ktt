@@ -15,7 +15,7 @@ public:
         sqlite3* connection,
         const TuningSourceSaveUdt& source);
 
-    static std::unique_ptr<TuningSourceDto> SelectSourceByFingerprints(
+    static std::unique_ptr<TuningSourceDto> SelectSourceByFingerprint(
         sqlite3 *connection,
         size_t sourceFingerprint,
         size_t parameterFingerprint);

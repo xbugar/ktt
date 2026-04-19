@@ -888,6 +888,8 @@ public:
     void SaveResults(const std::vector<KernelResult>& results, const std::string& filePath, const OutputFormat format,
         const UserData& data = {}) const;
 
+    void SaveResultsToDatabase(const std::vector<KernelResult> &results, KernelDefinitionId kernelId) const;
+
     /** @fn std::vector<KernelResult> LoadResults(const std::string& filePath, const OutputFormat format) const
       * Loads kernel results from the specified file. The file must be previously created by the tuner method SaveResults() with
       * corresponding output format.
@@ -908,6 +910,8 @@ public:
       * @return Results loaded from the file.
       */
     std::vector<KernelResult> LoadResults(const std::string& filePath, const OutputFormat format, UserData& data) const;
+
+    std::vector<KernelResult> LoadResultsFromDatabase(const KernelId id, const int limit = 5) const;
 
     /** @fn QueueId AddComputeQueue(ComputeQueue queue)
       * Adds the specified compute queue to the tuner. New queues can only be added if tuner was initialized with compute API

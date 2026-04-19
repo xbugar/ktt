@@ -551,25 +551,6 @@ std::vector<KernelResult> Tuner::Tune(const KernelId id, const KernelDimensions&
     }
 }
 
-std::vector<KernelResult> Tuner::TuneWithDb(const KernelId id, std::unique_ptr<StopCondition> stopCondition)
-{
-    return TuneWithDb(id, {}, std::move(stopCondition));
-}
-
-std::vector<KernelResult> Tuner::TuneWithDb(const KernelId id, const KernelDimensions& dimensions,
-    std::unique_ptr<StopCondition> stopCondition)
-{
-    try
-    {
-        return m_Tuner->TuneKernelWithDb(id, dimensions, std::move(stopCondition));
-    }
-    catch (const KttException& exception)
-    {
-        TunerCore::Log(LoggingLevel::Error, exception.what());
-        return std::vector<KernelResult>{};
-    }
-}
-
 KernelResult Tuner::TuneIteration(const KernelId id, const std::vector<BufferOutputDescriptor>& output,
     const bool recomputeReference, const std::optional<PreciseMeasurementParameters>& preciseParams)
 {
@@ -813,6 +794,20 @@ std::vector<KernelResult> Tuner::LoadResults(const std::string& filePath, const 
         TunerCore::Log(LoggingLevel::Error, exception.what());
         return std::vector<KernelResult>{};
     }
+}
+
+std::vector<KernelResult> Tuner::LoadResultsFromDatabase(const KernelId id, const int limit) const
+{
+    try
+    {
+        return m_Tuner->LoadResultsFromDatabase(id, limit);
+    }
+    catch (const KttException& exception)
+    {
+        TunerCore::Log(LoggingLevel::Error, exception.what());
+        return std::vector<KernelResult>{};
+    }
+
 }
 
 QueueId Tuner::AddComputeQueue(ComputeQueue queue)

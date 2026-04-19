@@ -1,10 +1,10 @@
 #pragma once
 #include <filesystem>
 #include <memory>
+#include <string>
 #include <vector>
 
-
-#include "Schema/Udts/TuningResultUdt.h"
+#include <Database/Schema/Udts/TuningResultUdt.h>
 
 struct sqlite3;
 
@@ -13,15 +13,36 @@ namespace ktt
 
 struct LoadTuningsDto
 {
-    size_t parameterFingerprint;
-    size_t sourceFingerprint;
+    size_t parameterFingerprint{};
+    size_t sourceFingerprint{};
+    size_t spaceFingerprint{};
+    int limit{};
+    ComputeApi computeApi{ComputeApi::Cpp};
+    struct Device
+    {
+        std::string Name;
+        std::string Type;
+        std::string Extensions;
+        int cudaComputeCapabilityMajor{};
+        int cudaComputeCapabilityMinor{};
+    } device;
 };
 
 struct SaveTuningsDto
 {
-    size_t sourceFingerprint;
-    size_t parameterFingerprint;
-    size_t spaceFingerprint;
+    size_t sourceFingerprint{};
+    size_t parameterFingerprint{};
+    size_t spaceFingerprint{};
+    ComputeApi computeApi{ComputeApi::Cpp};
+    struct Device
+    {
+        std::string Name;
+        std::string Vendor;
+        std::string Type;
+        std::string Extensions;
+        int cudaComputeCapabilityMajor{};
+        int cudaComputeCapabilityMinor{};
+    } device;
     std::vector<KernelResult> results;
 };
 

@@ -1,12 +1,22 @@
 #pragma once
 #include <memory>
 #include <sqlite3.h>
+#include <string>
 #include <vector>
 
+#include <ComputeEngine/ComputeApi.h>
 #include <Database/Schema/Udts/TuningResultUdt.h>
 
 namespace ktt
 {
+
+struct CompatibleResultQuery
+{
+    ComputeApi computeApi;
+    std::string deviceExtensions;
+    int cudaComputeCapabilityMajor;
+    int limit;
+};
 
 class ResultRepository
 {
@@ -15,13 +25,12 @@ class ResultRepository
     static void CreateResults(
         sqlite3* connection,
         size_t runId,
-        size_t spaceId,
         const std::vector<KernelResult>& results);
 
-    static std::unique_ptr<std::vector<TuningResultLoadUdt>> SelectTopResultsForSourceId(
-        sqlite3 *connection,
+    static std::vector<KernelResult> SelectCompatibleBestResultsForSourceId(
+        sqlite3* connection,
         size_t sourceId,
-        size_t limit = 5
+        const CompatibleResultQuery& query
     );
 };
 

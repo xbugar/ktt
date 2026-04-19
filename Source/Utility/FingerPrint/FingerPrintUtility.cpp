@@ -65,7 +65,7 @@ std::size_t FingerPrintUtility::GetFingerPrintOfDefinitions(const std::vector<co
 
 std::size_t FingerPrintUtility::HashFunction(std::size_t base, std::size_t value)
 {
-    return base ^ value + 0x9e3779b97f4a7c15 + (base << 6) + (base >> 2);
+    return base ^ (value + 0x9e3779b97f4a7c15 + (base << 6) + (base >> 2));
 }
 
 } // namespace ktt
