@@ -733,6 +733,19 @@ std::string Tuner::GetKernelDefinitionSource(const KernelDefinitionId id, const 
     }
 }
 
+DatabaseTuningInfo Tuner::GetDatabaseTuningInfo(const KernelId id) const
+{
+    try
+    {
+        return m_Tuner->GetDatabaseTuningInfo(id);
+    }
+    catch (const KttException& exception)
+    {
+        TunerCore::Log(LoggingLevel::Error, exception.what());
+        return DatabaseTuningInfo();
+    }
+}
+
 void Tuner::SetTimeUnit(const TimeUnit unit)
 {
     TunerCore::SetTimeUnit(unit);
@@ -766,17 +779,6 @@ void Tuner::SaveResults(const std::vector<KernelResult>& results, const std::str
     }
 }
 
-void Tuner::SaveResultsToDatabase(const std::vector<KernelResult>& results, const KernelId kernelId) const {
-    try
-    {
-        m_Tuner->SaveResultsToDatabase(results, kernelId);
-    }
-    catch (const KttException& exception)
-    {
-        TunerCore::Log(LoggingLevel::Error, exception.what());
-    }
-}
-
 std::vector<KernelResult> Tuner::LoadResults(const std::string& filePath, const OutputFormat format) const
 {
     [[maybe_unused]] UserData emptyData;
@@ -795,21 +797,6 @@ std::vector<KernelResult> Tuner::LoadResults(const std::string& filePath, const 
         return std::vector<KernelResult>{};
     }
 }
-
-std::vector<KernelResult> Tuner::LoadResultsFromDatabase(const KernelId id, const int limit) const
-{
-    try
-    {
-        return m_Tuner->LoadResultsFromDatabase(id, limit);
-    }
-    catch (const KttException& exception)
-    {
-        TunerCore::Log(LoggingLevel::Error, exception.what());
-        return std::vector<KernelResult>{};
-    }
-
-}
-
 QueueId Tuner::AddComputeQueue(ComputeQueue queue)
 {
     try

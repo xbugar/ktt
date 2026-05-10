@@ -36,6 +36,7 @@
 #include <Api/Configuration/KernelConfiguration.h>
 #include <Api/Info/DeviceInfo.h>
 #include <Api/Info/PlatformInfo.h>
+#include <Api/Info/DatabaseTuningInfo.h>
 #include <Api/Output/BufferOutputDescriptor.h>
 #include <Api/Output/KernelResult.h>
 
@@ -863,6 +864,8 @@ public:
       */
     std::string GetKernelDefinitionSource(const KernelDefinitionId id, const KernelConfiguration& configuration) const;
 
+    DatabaseTuningInfo GetDatabaseTuningInfo(const KernelId id) const;
+
     /** @fn static void SetTimeUnit(const TimeUnit unit)
       * Sets time unit used for printing of results. Default time unit is milliseconds.
       * @param unit Time unit which will be used for printing of results. See ::TimeUnit for more information.
@@ -888,8 +891,6 @@ public:
     void SaveResults(const std::vector<KernelResult>& results, const std::string& filePath, const OutputFormat format,
         const UserData& data = {}) const;
 
-    void SaveResultsToDatabase(const std::vector<KernelResult> &results, KernelDefinitionId kernelId) const;
-
     /** @fn std::vector<KernelResult> LoadResults(const std::string& filePath, const OutputFormat format) const
       * Loads kernel results from the specified file. The file must be previously created by the tuner method SaveResults() with
       * corresponding output format.
@@ -910,8 +911,6 @@ public:
       * @return Results loaded from the file.
       */
     std::vector<KernelResult> LoadResults(const std::string& filePath, const OutputFormat format, UserData& data) const;
-
-    std::vector<KernelResult> LoadResultsFromDatabase(const KernelId id, const int limit = 5) const;
 
     /** @fn QueueId AddComputeQueue(ComputeQueue queue)
       * Adds the specified compute queue to the tuner. New queues can only be added if tuner was initialized with compute API
