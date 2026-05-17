@@ -340,6 +340,12 @@ newoption
 
 newoption
 {
+    trigger = "database",
+    description = "Enables compilation of database integration"
+}
+
+newoption
+{
     trigger = "outdir",
     value = "path",
     description = "Specifies output directory for generated project files"
@@ -391,6 +397,11 @@ workspace "Ktt"
     language "C++"
     cppdialect "C++17"
     warnings "Extra"
+
+    if _OPTIONS["database"] then
+        defines {"KTT_DATABASE"}
+        includedirs {"Database"}
+    end
     
     filter "configurations:Debug"
         defines {"KTT_CONFIGURATION_DEBUG"}
@@ -432,6 +443,13 @@ project "Ktt"
         "Libraries/Json-3.9.1",
         "Libraries/pugixml-1.11.4"
     }
+
+    if _OPTIONS["database"] then
+        files {"Database/**"}
+        includedirs {"Database"}
+        defines {"KTT_DATABASE"}
+        links {"sqlite3"}
+    end
     
     if _OPTIONS["python"] then
         if os.target() == "linux" then

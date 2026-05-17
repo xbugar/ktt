@@ -20,3 +20,7 @@
 #include <Api/ComputeInterface.h>
 
 #include <Api/Configuration/PreciseMeasurementParameters.h>
+
+#if defined(KTT_DATABASE)
+#include <Database.h>
+#endif

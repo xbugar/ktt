@@ -383,13 +383,12 @@ DatabaseTuningInfo TunerCore::GetDatabaseTuningInfo(const KernelId id) const
 
     DatabaseTuningInfo s;
     {
+        s.spaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
         s.parameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
         s.sourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
-        s.spaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
         s.computeApi = m_ComputeEngine->GetComputeApi();
 
         DatabaseDeviceInfo d;
-        s.device = d;
         {
             d.Name = deviceInfo.GetName();
             d.Type = deviceInfo.GetDeviceTypeString();
@@ -406,6 +405,7 @@ DatabaseTuningInfo TunerCore::GetDatabaseTuningInfo(const KernelId id) const
                 d.cudaComputeCapabilityMinor = deviceInfo.GetCudaComputeCapabilityMinor();
             }
         }
+        s.device = d;
     }
     return s;
 }

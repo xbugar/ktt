@@ -29,6 +29,7 @@ struct DatabaseTuningInfo
     size_t spaceFingerprint{};
     ComputeApi computeApi{ComputeApi::Cpp};
     DatabaseDeviceInfo device{};
+    std::optional<std::string> inputData{};
 };
 
 } // namespace ktt
