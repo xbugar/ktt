@@ -927,7 +927,7 @@ public:
       */
     std::string GetKernelDefinitionSource(const KernelDefinitionId id, const KernelConfiguration& configuration) const;
 
-    DatabaseTuningInfo GetDatabaseTuningInfo(const KernelId id) const;
+    ktt::db::TuningInfo GetDatabaseTuningInfo(const KernelId id) const;
 
     /** @fn static void SetTimeUnit(const TimeUnit unit)
       * Sets time unit used for printing of results. Default time unit is milliseconds.

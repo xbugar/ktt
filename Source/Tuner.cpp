@@ -760,7 +760,7 @@ std::string Tuner::GetKernelDefinitionSource(const KernelDefinitionId id, const 
     }
 }
 
-DatabaseTuningInfo Tuner::GetDatabaseTuningInfo(const KernelId id) const
+ktt::db::TuningInfo Tuner::GetDatabaseTuningInfo(const KernelId id) const
 {
     try
     {
@@ -769,7 +769,7 @@ DatabaseTuningInfo Tuner::GetDatabaseTuningInfo(const KernelId id) const
     catch (const KttException& exception)
     {
         TunerCore::Log(LoggingLevel::Error, exception.what());
-        return DatabaseTuningInfo();
+        return ktt::db::TuningInfo();
     }
 }
 

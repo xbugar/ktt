@@ -397,11 +397,6 @@ workspace "Ktt"
     language "C++"
     cppdialect "C++17"
     warnings "Extra"
-
-    if _OPTIONS["database"] then
-        defines {"KTT_DATABASE"}
-        includedirs {"Database"}
-    end
     
     filter "configurations:Debug"
         defines {"KTT_CONFIGURATION_DEBUG"}
@@ -756,6 +751,10 @@ project "CoulombSum3dCuda"
     files {"Examples/CoulombSum3d/*.cpp", "Examples/CoulombSum3d/*.cu"}
     includedirs {"Source"}
     defines {"KTT_CUDA_EXAMPLE"}
+    if _OPTIONS["database"] then
+        defines {"KTT_DATABASE"}
+        includedirs {"Database", "Libraries/Json-3.9.1"}
+    end
     links {"ktt"}
     enableOpenMP()
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Database.h>
 #include <memory>
 #include <optional>
 #include <sqlite3.h>
@@ -20,6 +21,8 @@ public:
     static Source CreateSource(sqlite3 *connection, const Source &source);
 
     static Source GetOrCreateSource(sqlite3 *connection, Source source);
+
+    static std::optional<SourceStats> GetStatsForSource(sqlite3 *connection, size_t sourceFingerprint);
 };
 
 } // namespace ktt::db

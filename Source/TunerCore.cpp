@@ -373,7 +373,7 @@ KernelResult TunerCore::GetBestResult(const std::vector<KernelResult>& results) 
     return results[bestIdx];
 }
 
-DatabaseTuningInfo TunerCore::GetDatabaseTuningInfo(const KernelId id) const
+ktt::db::TuningInfo TunerCore::GetDatabaseTuningInfo(const KernelId id) const
 {
     const auto& kernel = m_KernelManager->GetKernel(id);
     const auto& parameters = kernel.GetParameters();
@@ -381,25 +381,29 @@ DatabaseTuningInfo TunerCore::GetDatabaseTuningInfo(const KernelId id) const
     const auto constraints = kernel.GetConstraints();
     const auto deviceInfo = GetCurrentDeviceInfo();
 
-    DatabaseTuningInfo s;
+    ktt::db::TuningInfo s;
     {
-        s.spaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
-        s.parameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
-        s.sourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
-        s.computeApi = m_ComputeEngine->GetComputeApi();
-
-        DatabaseDeviceInfo d;
+        ktt::db::TuningSpaceInfo spaceInfo;
         {
+            spaceInfo.spaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
+            spaceInfo.parameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
+            spaceInfo.sourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
+        }
+        s.spaceInfo = spaceInfo;
+
+        ktt::db::DeviceInfo d;
+        {
+            d.computeApi = m_ComputeEngine->GetComputeApi();
             d.Name = deviceInfo.GetName();
             d.Type = deviceInfo.GetDeviceTypeString();
             d.Vendor = deviceInfo.GetVendor();
 
-            if (s.computeApi == ComputeApi::OpenCL || s.computeApi == ComputeApi::Vulkan)
+            if (d.computeApi == ComputeApi::OpenCL || d.computeApi == ComputeApi::Vulkan)
             {
                 d.Extensions = deviceInfo.GetExtensions();
             }
 
-            if (s.computeApi == ComputeApi::CUDA)
+            if (d.computeApi == ComputeApi::CUDA)
             {
                 d.cudaComputeCapabilityMajor = deviceInfo.GetCudaComputeCapabilityMajor();
                 d.cudaComputeCapabilityMinor = deviceInfo.GetCudaComputeCapabilityMinor();

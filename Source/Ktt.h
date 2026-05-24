@@ -21,6 +21,6 @@
 
 #include <Api/Configuration/PreciseMeasurementParameters.h>
 
-#if defined(KTT_DATABASE)
+#ifdef KTT_DATABASE
 #include <Database.h>
 #endif

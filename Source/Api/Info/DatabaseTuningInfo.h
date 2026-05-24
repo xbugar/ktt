@@ -5,10 +5,10 @@
 
 #include <ComputeEngine/ComputeApi.h>
 
-namespace ktt
+namespace ktt::db
 {
 
-struct DatabaseDeviceInfo
+struct DeviceInfo
 {
     std::string Name;
     std::string Vendor;
@@ -16,20 +16,25 @@ struct DatabaseDeviceInfo
     std::optional<std::string> Extensions;
     std::optional<uint32_t> cudaComputeCapabilityMajor{};
     std::optional<uint32_t> cudaComputeCapabilityMinor{};
+    ComputeApi computeApi{ComputeApi::Cpp};
 };
 
-/** @struct DatabaseTuningInfo
- * Data transfer object which holds all information about tuning source and tuning space for which the results were
- * saved to database.
- */
-struct DatabaseTuningInfo
+struct TuningSpaceInfo
 {
     size_t parameterFingerprint{};
     size_t sourceFingerprint{};
     size_t spaceFingerprint{};
-    ComputeApi computeApi{ComputeApi::Cpp};
-    DatabaseDeviceInfo device{};
-    std::optional<std::string> inputData{};
 };
 
-} // namespace ktt
+/** @struct TuningInfo
+ * Data transfer object which holds all information about tuning source and tuning space for which the results were
+ * saved to database.
+ */
+struct TuningInfo
+{
+    DeviceInfo device{};
+    std::optional<std::string> inputData{};
+    TuningSpaceInfo spaceInfo{};
+};
+
+} // namespace ktt::db
