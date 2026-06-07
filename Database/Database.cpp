@@ -70,34 +70,47 @@ void Database::SaveResultsForSource(const TuningInfo &tuningInfo, std::vector<Ke
     Source source{std::nullopt, tuningInfo.spaceInfo.sourceFingerprint};
     source = SourceRepository::GetOrCreateSource(Connection, source);
 
-    Space space{
+    Space space
+    {
         std::nullopt, // space Id
         *source.id,
         tuningInfo.spaceInfo.parameterFingerprint,
         tuningInfo.spaceInfo.spaceFingerprint
     };
-    space = SpaceRepository::GetOrCreateSpace(Connection, space);
+    space = SpaceRepository::GetOrCreateSpace(
+        Connection,
+        {
+            std::nullopt, // space Id
+            *source.id,
+            tuningInfo.spaceInfo.parameterFingerprint,
+            tuningInfo.spaceInfo.spaceFingerprint
+        }
+    );
 
     const auto device = DeviceRepository::GetOrCreateDevice(
         Connection,
-        {std::nullopt, // device Id
-         std::nullopt, // api Id
-         tuningInfo.device.Name,
-         tuningInfo.device.Vendor,
-         tuningInfo.device.Type,
-         tuningInfo.device.computeApi,
-         tuningInfo.device.Extensions,
-         tuningInfo.device.cudaComputeCapabilityMajor,
-         tuningInfo.device.cudaComputeCapabilityMinor}
+        {
+            std::nullopt, // device Id
+            std::nullopt, // api Id
+            tuningInfo.device.Name,
+            tuningInfo.device.Vendor,
+            tuningInfo.device.Type,
+            tuningInfo.device.computeApi,
+            tuningInfo.device.Extensions,
+            tuningInfo.device.cudaComputeCapabilityMajor,
+            tuningInfo.device.cudaComputeCapabilityMinor
+        }
     );
 
     const size_t runId = RunRepository::CreateRun(
         Connection,
-        {std::nullopt, // run Id
-         *space.id,
-         *device.id,
-         *device.apiId,
-         tuningInfo.inputData}
+        {
+            std::nullopt, // run Id
+            *space.id,
+            *device.id,
+            *device.apiId,
+            tuningInfo.inputData
+        }
     );
 
     ResultRepository::CreateResults(Connection, runId, results, IndentResultsJson);
