@@ -45,4 +45,17 @@ void DatabaseUtility::BindOptionalText(
     else
         sqlite3_bind_null(statement, index);
 }
+
+std::string DatabaseUtility::SqlList(const uint size)
+{
+    std::string sqlList = "(";
+    for (size_t i = 0; i < size; ++i)
+    {
+        if (i > 0)
+            sqlList += ", ";
+        sqlList += "?";
+    }
+    sqlList += ")";
+    return sqlList;
+}
 } // namespace ktt::db

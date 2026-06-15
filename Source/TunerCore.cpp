@@ -394,13 +394,13 @@ ktt::db::TuningInfo TunerCore::GetDatabaseTuningInfo(const KernelId id) const
         ktt::db::DeviceInfo d;
         {
             d.computeApi = m_ComputeEngine->GetComputeApi();
-            d.Name = deviceInfo.GetName();
-            d.Type = deviceInfo.GetDeviceTypeString();
-            d.Vendor = deviceInfo.GetVendor();
+            d.name = deviceInfo.GetName();
+            d.type = deviceInfo.GetDeviceTypeString();
+            d.vendor = deviceInfo.GetVendor();
 
             if (d.computeApi == ComputeApi::OpenCL || d.computeApi == ComputeApi::Vulkan)
             {
-                d.Extensions = deviceInfo.GetExtensions();
+                d.extensions = deviceInfo.GetExtensions();
             }
 
             if (d.computeApi == ComputeApi::CUDA)

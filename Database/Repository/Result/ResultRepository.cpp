@@ -131,14 +131,9 @@ std::vector<KernelResult> ResultRepository::ResultsForRunIds(
     if (runIds.empty() || limit == 0)
         return {};
 
-    std::string resultSql = "SELECT tuning_result.result FROM tuning_result WHERE tuning_result.run_id IN (";
-    for (size_t i = 0; i < runIds.size(); ++i)
-    {
-        if (i > 0)
-            resultSql += ", ";
-        resultSql += "?";
-    }
-    resultSql += ") ORDER BY tuning_result.duration ASC LIMIT ?";
+    std::string resultSql = "SELECT tuning_result.result FROM tuning_result WHERE tuning_result.run_id IN "
+        + DatabaseUtility::SqlList(runIds.size())
+        + " ORDER BY tuning_result.duration ASC LIMIT ?";
 
     sqlite3_stmt *resultStmt = DatabaseUtility::PrepareStatement(
         connection,

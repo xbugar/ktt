@@ -10,10 +10,10 @@ namespace ktt::db
 
 struct DeviceInfo
 {
-    std::string Name;
-    std::string Vendor;
-    std::string Type;
-    std::optional<std::string> Extensions;
+    std::string name;
+    std::string vendor;
+    std::string type;
+    std::optional<std::string> extensions;
     std::optional<uint32_t> cudaComputeCapabilityMajor{};
     std::optional<uint32_t> cudaComputeCapabilityMinor{};
     ComputeApi computeApi{ComputeApi::Cpp};

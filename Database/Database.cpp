@@ -4,6 +4,7 @@
 #include <utility>
 
 #include <Api/Info/DatabaseTuningInfo.h>
+#include <Output/OutputFormat.h>
 #include <Repository/Device/DeviceRepository.h>
 #include <Repository/Result/ResultRepository.h>
 #include <Repository/Run/RunRepository.h>
@@ -15,7 +16,8 @@
 namespace ktt::db
 {
 
-Database::Database(const int indentResultsJson) : Connection(nullptr), IndentResultsJson(indentResultsJson)
+Database::Database(const ktt::OutputFormat format, const int indentResultsJson) :
+    Connection(nullptr), IndentResultsJson(indentResultsJson), OutputFormat(format)
 {
     DatabasePath = std::filesystem::path(std::getenv("HOME")) / ".local/share/ktt";
     std::filesystem::create_directories(DatabasePath);
@@ -25,8 +27,9 @@ Database::Database(const int indentResultsJson) : Connection(nullptr), IndentRes
     OpenOrCreateDatabase();
 }
 
-Database::Database(std::filesystem::path databasePath, const int indentResultsJson) :
-    DatabasePath(std::move(databasePath)), Connection(nullptr), IndentResultsJson(indentResultsJson)
+Database::Database(const ktt::OutputFormat format, std::filesystem::path databasePath, const int indentResultsJson) :
+    DatabasePath(std::move(databasePath)), Connection(nullptr), IndentResultsJson(indentResultsJson),
+    OutputFormat(format)
 {
     ktt::Logger::LogInfo("Initializing database at " + DatabasePath.string());
     OpenOrCreateDatabase();
@@ -67,58 +70,47 @@ void Database::CloseDatabase() const
 
 void Database::SaveResultsForSource(const TuningInfo &tuningInfo, std::vector<KernelResult> results) const
 {
-    Source source{std::nullopt, tuningInfo.spaceInfo.sourceFingerprint};
-    source = SourceRepository::GetOrCreateSource(Connection, source);
-
-    Space space
-    {
-        std::nullopt, // space Id
-        *source.id,
-        tuningInfo.spaceInfo.parameterFingerprint,
-        tuningInfo.spaceInfo.spaceFingerprint
-    };
-    space = SpaceRepository::GetOrCreateSpace(
+    const auto source = SourceRepository::GetOrCreateSource(
         Connection,
-        {
-            std::nullopt, // space Id
-            *source.id,
-            tuningInfo.spaceInfo.parameterFingerprint,
-            tuningInfo.spaceInfo.spaceFingerprint
-        }
+        {std::nullopt, tuningInfo.spaceInfo.sourceFingerprint}
+    );
+
+    const auto space = SpaceRepository::GetOrCreateSpace(
+        Connection,
+        {std::nullopt, // space Id
+         *source.id,
+         tuningInfo.spaceInfo.parameterFingerprint,
+         tuningInfo.spaceInfo.spaceFingerprint}
     );
 
     const auto device = DeviceRepository::GetOrCreateDevice(
         Connection,
-        {
-            std::nullopt, // device Id
-            std::nullopt, // api Id
-            tuningInfo.device.Name,
-            tuningInfo.device.Vendor,
-            tuningInfo.device.Type,
-            tuningInfo.device.computeApi,
-            tuningInfo.device.Extensions,
-            tuningInfo.device.cudaComputeCapabilityMajor,
-            tuningInfo.device.cudaComputeCapabilityMinor
-        }
+        {std::nullopt, // device Id
+         std::nullopt, // api Id
+         tuningInfo.device.name,
+         tuningInfo.device.vendor,
+         tuningInfo.device.type,
+         tuningInfo.device.computeApi,
+         tuningInfo.device.extensions,
+         tuningInfo.device.cudaComputeCapabilityMajor,
+         tuningInfo.device.cudaComputeCapabilityMinor}
     );
 
     const size_t runId = RunRepository::CreateRun(
         Connection,
-        {
-            std::nullopt, // run Id
-            *space.id,
-            *device.id,
-            *device.apiId,
-            tuningInfo.inputData
-        }
+        {std::nullopt, // run Id
+         *space.id,
+         *device.id,
+         *device.apiId,
+         tuningInfo.inputData}
     );
 
     ResultRepository::CreateResults(Connection, runId, results, IndentResultsJson);
 }
 
-std::vector<KernelResult> Database::GetBestResultsForSource(const TuningInfo &t, uint32_t limit) const
+std::vector<KernelResult> Database::SimpleGetBestResultsForSource(const TuningInfo &t, uint32_t limit) const
 {
-    const auto source = SourceRepository::GetSourceByFingerprint(Connection, t.spaceInfo.sourceFingerprint);
+    const auto source = SourceRepository::GetSource(Connection, t.spaceInfo.sourceFingerprint);
     if (source == std::nullopt)
     {
         ktt::Logger::LogInfo("No results found for this source");
@@ -143,23 +135,23 @@ std::vector<KernelResult> Database::GetBestResultsForSource(const TuningInfo &t,
         space.value().id.value(),
         {std::nullopt, // device Id
          std::nullopt, // api Id
-         t.device.Name,
-         t.device.Vendor,
-         t.device.Type,
+         t.device.name,
+         t.device.vendor,
+         t.device.type,
          t.device.computeApi,
-         t.device.Extensions,
+         t.device.extensions,
          t.device.cudaComputeCapabilityMajor,
          t.device.cudaComputeCapabilityMinor},
         limit
     );
 }
 
-std::vector<KernelResult> Database::GetBestResultsQuery(const GetResultsQuery &query) const
+std::vector<KernelResult> Database::GetBestResults(const GetResultsQuery &query) const
 {
     if (query.limit <= 0)
         return {};
 
-    const auto source = SourceRepository::GetSourceByFingerprint(Connection, query.source.sourceFingerprint);
+    const auto source = SourceRepository::GetSource(Connection, query.source.sourceFingerprint);
     if (source == std::nullopt)
     {
         ktt::Logger::LogInfo("No results found for this source");

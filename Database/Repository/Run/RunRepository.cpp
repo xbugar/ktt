@@ -37,11 +37,6 @@ size_t RunRepository::CreateRun(sqlite3 *connection, const Run &run)
     return sqlite3_last_insert_rowid(connection);
 }
 
-std::vector<RunQueryResult> RunRepository::GetRunsForSpace(sqlite3 *connection, size_t spaceId)
-{
-    return GetRunsForSpacePaged(connection, spaceId, 0, 0);
-}
-
 std::vector<RunQueryResult> RunRepository::GetRunsForSpacePaged(
     sqlite3 *connection, size_t spaceId, size_t offset, size_t limit
 )
@@ -98,9 +93,9 @@ std::vector<RunQueryResult> RunRepository::GetRunsForSpacePaged(
         row.inputData = inputIsNull ? std::nullopt
                                     : std::optional<std::string>(DatabaseUtility::ReadTextColumn(runStmt, 1));
 
-        row.deviceInfo.Name = DatabaseUtility::ReadTextColumn(runStmt, 2);
-        row.deviceInfo.Vendor = DatabaseUtility::ReadTextColumn(runStmt, 3);
-        row.deviceInfo.Type = DatabaseUtility::ReadTextColumn(runStmt, 4);
+        row.deviceInfo.name = DatabaseUtility::ReadTextColumn(runStmt, 2);
+        row.deviceInfo.vendor = DatabaseUtility::ReadTextColumn(runStmt, 3);
+        row.deviceInfo.type = DatabaseUtility::ReadTextColumn(runStmt, 4);
         row.deviceInfo.computeApi = static_cast<ComputeApi>(sqlite3_column_int(runStmt, 5));
 
         const bool majorIsNull = sqlite3_column_type(runStmt, 6) == SQLITE_NULL;
@@ -112,7 +107,7 @@ std::vector<RunQueryResult> RunRepository::GetRunsForSpacePaged(
         if (!minorIsNull)
             row.deviceInfo.cudaComputeCapabilityMinor = static_cast<uint32_t>(sqlite3_column_int(runStmt, 7));
         if (!extensionsIsNull)
-            row.deviceInfo.Extensions = DatabaseUtility::ReadTextColumn(runStmt, 8);
+            row.deviceInfo.extensions = DatabaseUtility::ReadTextColumn(runStmt, 8);
 
         runs.push_back(std::move(row));
     }

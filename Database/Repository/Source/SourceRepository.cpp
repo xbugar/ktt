@@ -39,7 +39,7 @@ Source SourceRepository::CreateSource(sqlite3 *connection, const Source &source)
 }
 
 
-std::optional<Source> SourceRepository::GetSourceByFingerprint(sqlite3 *connection, const size_t sourceFingerprint)
+std::optional<Source> SourceRepository::GetSource(sqlite3 *connection, const size_t sourceFingerprint)
 {
     const char *sourceSQL = R"(
             SELECT id, source_fingerprint
@@ -86,7 +86,7 @@ std::optional<Source> SourceRepository::GetSourceByFingerprint(sqlite3 *connecti
 
 Source SourceRepository::GetOrCreateSource(sqlite3 *connection, Source source)
 {
-    if (auto existingSource = GetSourceByFingerprint(connection, source.sourceFingerprint))
+    if (auto existingSource = GetSource(connection, source.sourceFingerprint))
         return *existingSource;
 
     return CreateSource(connection, source);
