@@ -31,11 +31,11 @@
 
 /** Minor version of KTT framework. Second number in KTT version description.
   */
-#define KTT_VERSION_MINOR 2
+#define KTT_VERSION_MINOR 3
 
 /** Patch version of KTT framework. Third number in KTT version description.
   */
-#define KTT_VERSION_PATCH 0
+#define KTT_VERSION_PATCH 1
 
 namespace ktt
 {

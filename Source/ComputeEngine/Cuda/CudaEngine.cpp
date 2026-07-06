@@ -40,6 +40,7 @@ CudaEngine::CudaEngine(const DeviceIndex deviceIndex, const uint32_t queueCount)
     m_DeviceInfo(0, ""),
     m_KernelCache(10),
     m_L2CacheSize(0),
+    m_defaultStackSize(1024),
     m_L2CacheDevicePtr(0)
 {
     Logger::LogDebug("Initializing CUDA");
@@ -63,6 +64,9 @@ CudaEngine::CudaEngine(const DeviceIndex deviceIndex, const uint32_t queueCount)
         CheckError(cuMemAlloc(&m_L2CacheDevicePtr, m_L2CacheSize), "cuMemAlloc");
         Logger::LogDebug("Allocated L2 cache flush buffer of size " + std::to_string(m_L2CacheSize));
     }
+
+    CheckError(cuCtxGetLimit(&m_defaultStackSize, CU_LIMIT_STACK_SIZE), "cuCtxGetLimit");
+    Logger::LogDebug("Default stack size " + std::to_string(m_defaultStackSize));
 
     for (uint32_t i = 0; i < queueCount; ++i)
     {
@@ -90,6 +94,7 @@ CudaEngine::CudaEngine(const ComputeApiInitializer& initializer, std::vector<Que
     m_DeviceInfo(0, ""),
     m_KernelCache(10),
     m_L2CacheSize(0),
+    m_defaultStackSize(1024),
     m_L2CacheDevicePtr(0)
 {
     m_Context = std::make_unique<CudaContext>(initializer.GetContext());
@@ -103,6 +108,9 @@ CudaEngine::CudaEngine(const ComputeApiInitializer& initializer, std::vector<Que
         CheckError(cuMemAlloc(&m_L2CacheDevicePtr, m_L2CacheSize), "cuMemAlloc");
         Logger::LogDebug("Allocated L2 cache flush buffer of size " + std::to_string(m_L2CacheSize));
     }
+
+    CheckError(cuCtxGetLimit(&m_defaultStackSize, CU_LIMIT_STACK_SIZE), "cuCtxGetLimit");
+    Logger::LogDebug("Default stack size " + std::to_string(m_defaultStackSize));
 
     const auto devices = CudaDevice::GetAllDevices();
 
@@ -146,8 +154,10 @@ CudaEngine::~CudaEngine()
     }
 }
 
-void CudaEngine::FlushL2Cache(const QueueId queueId)
+void CudaEngine::Sanitize(const QueueId queueId)
 {
+    CheckError(cuCtxSetLimit(CU_LIMIT_STACK_SIZE, m_defaultStackSize), "cuCtxSetLimit");
+
     if (m_L2CacheSize == 0 || m_L2CacheDevicePtr == 0)
     {
         return;
@@ -283,6 +293,11 @@ ComputeActionId CudaEngine::RunKernelAsync(const KernelComputeData& data, const 
             }
         }
         pwrTimer.Stop();
+        // pwrTimer starts before the first kernel launch (line ~225), so the recorded
+        // overhead includes the initial execution and first NVML sample collection in
+        // addition to the stabilization while-loop. This is intentional: the entire
+        // precise-measurement block is treated as overhead.
+        action->IncreasePreciseMeasurementOverhead(pwrTimer.GetElapsedTime());
 
         // Calculate duration and standard deviation using utility methods
         const auto measurementResult = PreciseMeasurementParameters::ComputeDurationAndStdev(
@@ -327,7 +342,8 @@ ComputeActionId CudaEngine::RunKernelAsync(const KernelComputeData& data, const 
     
     if (preciseParams.has_value())
     {
-        // Execute kernel multiple times for stable timing measurement using utility
+        Timer preciseMeasurementTimer;
+        preciseMeasurementTimer.Start();
         const auto& params = preciseParams.value();
         const auto result = MeasurementUtility::ExecuteWithStableTiming(
             [&]() -> Nanoseconds {
@@ -337,9 +353,11 @@ ComputeActionId CudaEngine::RunKernelAsync(const KernelComputeData& data, const 
             },
             params,
             "CUDA");
-        
+
         action->SetDurationFromMultirun(result.duration);
         action->SetDurationStdev(result.standardDeviation);
+        preciseMeasurementTimer.Stop();
+        action->IncreasePreciseMeasurementOverhead(preciseMeasurementTimer.GetElapsedTime());
     }
 #endif // KTT_POWER_USAGE_NVML
 
@@ -425,7 +443,7 @@ ComputationResult CudaEngine::RunKernelWithProfiling([[maybe_unused]] const Kern
     // On subsequent runs, pass nullopt to avoid re-running measurement
     const auto actionId = RunKernelAsync(data, queueId, newProfiling, newProfiling ? preciseParams : std::nullopt);
     auto& action = *m_ComputeActions[actionId];
-    action.IncreaseOverhead(timer.GetElapsedTime());
+    action.IncreaseProfilingOverhead(timer.GetElapsedTime());
     ComputationResult result = WaitForComputeAction(actionId);
 
     if (!instance.HasValidKernelDuration())
@@ -438,7 +456,7 @@ ComputationResult CudaEngine::RunKernelWithProfiling([[maybe_unused]] const Kern
     FillProfilingData(id, result);
     timer.Stop();
 
-    result.SetDurationData(result.GetDuration(), result.GetOverhead() + timer.GetElapsedTime(), result.GetCompilationOverhead());
+    result.SetDurationData(result.GetDuration(), result.GetOverhead(), result.GetCompilationOverhead(), result.GetProfilingOverhead() + timer.GetElapsedTime());
     return result;
 
 #elif KTT_PROFILING_CUPTI
@@ -469,7 +487,7 @@ ComputationResult CudaEngine::RunKernelWithProfiling([[maybe_unused]] const Kern
     // On subsequent runs, pass nullopt to avoid re-running measurement
     const auto actionId = RunKernelAsync(data, queueId, newProfiling, newProfiling ? preciseParams : std::nullopt);
     auto& action = *m_ComputeActions[actionId];
-    action.IncreaseOverhead(timer.GetElapsedTime());
+    action.IncreaseProfilingOverhead(timer.GetElapsedTime()); 
     ComputationResult result = WaitForComputeAction(actionId);
     
     if (!instance.HasValidKernelDuration())
@@ -482,7 +500,7 @@ ComputationResult CudaEngine::RunKernelWithProfiling([[maybe_unused]] const Kern
     FillProfilingData(id, result);
     timer.Stop();
 
-    result.SetDurationData(result.GetDuration(), result.GetOverhead() + timer.GetElapsedTime(), result.GetCompilationOverhead());
+    result.SetDurationData(result.GetDuration(), result.GetOverhead(), result.GetCompilationOverhead(), result.GetProfilingOverhead() + timer.GetElapsedTime());
     return result;
 
 #else
@@ -1162,15 +1180,7 @@ void CudaEngine::FillProfilingData(const KernelComputeId& id, ComputationResult&
 
     if (profilingData->IsValid())
     {
-        KttAssert(instance.HasValidKernelDuration(), "Kernel duration must be known before filling in profiling data");
-        uint64_t profiledKernelOverhead = 0;
-
-        if (result.GetDuration() > instance.GetKernelDuration())
-        {
-            profiledKernelOverhead = result.GetDuration() - instance.GetKernelDuration();
-        }
-
-        result.SetDurationData(result.GetDuration() - profiledKernelOverhead, result.GetOverhead() + profiledKernelOverhead, result.GetCompilationOverhead());
+        result.SetDurationData(result.GetDuration(), result.GetOverhead(), result.GetCompilationOverhead(), result.GetProfilingOverhead());
         m_CuptiInstances.erase(id);
     }
 
@@ -1196,14 +1206,7 @@ void CudaEngine::FillProfilingData(const KernelComputeId& id, ComputationResult&
 
     if (profilingData->IsValid())
     {
-        uint64_t profiledKernelOverhead = 0;
-
-        if (result.GetDuration() > instance.GetKernelDuration())
-        {
-            profiledKernelOverhead = result.GetDuration() - instance.GetKernelDuration();
-        }
-
-        result.SetDurationData(result.GetDuration() - profiledKernelOverhead, result.GetOverhead() + profiledKernelOverhead, result.GetCompilationOverhead());
+        result.SetDurationData(result.GetDuration(), result.GetOverhead(), result.GetCompilationOverhead(), result.GetProfilingOverhead());
         m_CuptiInstances.erase(id);
     }
 
