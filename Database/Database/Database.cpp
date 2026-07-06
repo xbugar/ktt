@@ -34,6 +34,19 @@ Database::Database(std::filesystem::path databasePath) : DatabasePath(std::move(
     OpenOrCreateDatabase();
 }
 
+Database::Database(sqlite3* connection) : Connection(connection), OwnsConnection(false)
+{
+    if (Connection == nullptr)
+        throw KttException("Cannot construct Database from a null SQLite connection");
+
+    const char* filename = sqlite3_db_filename(Connection, "main");
+    DatabasePath = (filename != nullptr) ? std::filesystem::path(filename) : std::filesystem::path();
+
+    ktt::Logger::LogInfo("Initializing database from existing SQLite connection at " + DatabasePath.string());
+    sqlite3_exec(Connection, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
+    Schema::CreateIfNotExists(Connection);
+}
+
 
 Database::~Database()
 {
@@ -60,14 +73,14 @@ void Database::OpenOrCreateDatabase() const
 
 void Database::CloseDatabase() const
 {
-    if (Connection != nullptr)
+    if (OwnsConnection && Connection != nullptr)
     {
         sqlite3_close(Connection);
         Connection = nullptr;
     }
 }
 
-void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResult> results, SaveOptions option) const
+void Database::SaveResults(const TuningInfo& tuningInfo, std::vector<KernelResult> results, SaveOptions option) const
 {
     try
     {
@@ -118,7 +131,7 @@ void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResul
     }
 }
 
-std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo &t, uint32_t limit) const
+std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo& t, uint32_t limit) const
 {
     const auto source = SourceRepository::GetSource(Connection, t.spaceInfo.sourceFingerprint);
     if (source == std::nullopt)
@@ -156,7 +169,7 @@ std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo &t, ui
     );
 }
 
-std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery &query) const
+std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery& query) const
 {
     if (query.limit <= 0)
         return {};
@@ -194,7 +207,7 @@ std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery &qu
         std::vector<size_t> runIds;
         runIds.reserve(runs.size());
 
-        for (const auto &run : runs)
+        for (const auto& run : runs)
         {
             bool keep = true;
             if (query.devicePredicate)
@@ -221,7 +234,7 @@ std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery &qu
 
         bestResults.insert(bestResults.end(), batchResults.begin(), batchResults.end());
 
-        std::sort(bestResults.begin(), bestResults.end(), [](const KernelResult &left, const KernelResult &right) {
+        std::sort(bestResults.begin(), bestResults.end(), [](const KernelResult& left, const KernelResult& right) {
             return left.GetTotalDuration() < right.GetTotalDuration();
         });
 
@@ -237,12 +250,12 @@ std::optional<SourceStats> Database::GetStatsForSource(const size_t sourceFinger
     return SourceRepository::GetStatsForSource(Connection, sourceFingerprint);
 }
 
-size_t Database::SyncFromFile(const std::filesystem::path &sourceDatabase) const
+size_t Database::SyncFromFile(const std::filesystem::path& sourceDatabase) const
 {
     if (!std::filesystem::exists(sourceDatabase))
         throw KttException("Cannot sync: database file does not exist: " + sourceDatabase.string());
 
-    sqlite3 *source = nullptr;
+    sqlite3* source = nullptr;
     const int open = sqlite3_open_v2(sourceDatabase.string().c_str(), &source, SQLITE_OPEN_READONLY, nullptr);
 
     if (open != SQLITE_OK)
@@ -261,7 +274,7 @@ size_t Database::SyncFromFile(const std::filesystem::path &sourceDatabase) const
 
         const auto records = RunRepository::GetAllRuns(source);
 
-        for (const auto &record : records)
+        for (const auto& record : records)
         {
             if (RunRepository::RunExists(Connection, record.guid))
                 continue;

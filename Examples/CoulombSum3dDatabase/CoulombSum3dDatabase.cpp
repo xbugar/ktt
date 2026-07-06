@@ -286,17 +286,17 @@ int main(int argc, char** argv)
     // };
     // const auto results = db.GetBestResults(query);
 
-    // const auto results = tuner.Tune(kernel, std::make_unique<ktt::FailureFraction>(0.1, 10) /*std::make_unique<ktt::ConfigurationCount>(2)*/, preciseParams);
+    const auto results = tuner.Tune(kernel, std::make_unique<ktt::FailureFraction>(0.1, 10) /*std::make_unique<ktt::ConfigurationCount>(2)*/, preciseParams);
     
     // tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::JSON);
 
     /**
      * Database integration example - Save
      */
-    // auto save = tuner.GetDatabaseTuningInfo(kernel);
+    auto save = tuner.GetDatabaseTuningInfo(kernel);
     // save.inputData = "atoms=" + std::to_string(atoms) + ";gridSize=" + std::to_string(gridSize);
     // db.SaveResults(save, results, {ktt::OutputFormat::JSON, 2});
     // db.SaveResults(save, results, {ktt::OutputFormat::JSON_T4, 2});
-    // db.SaveResults(save, results, {ktt::OutputFormat::XML, 2});
+    db.SaveResults(save, results, {ktt::OutputFormat::XML, 2});
     return 0;
 }

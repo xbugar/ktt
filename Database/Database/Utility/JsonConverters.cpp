@@ -5,7 +5,7 @@
 namespace ktt::db
 {
 
-void to_json(nlohmann::json &j, const SourceStats &stats)
+void to_json(nlohmann::json& j, const SourceStats& stats)
 {
     j = nlohmann::json{
         {"spaceCount", stats.spaceCount},
@@ -15,7 +15,7 @@ void to_json(nlohmann::json &j, const SourceStats &stats)
     };
 }
 
-void from_json(const nlohmann::json &j, SourceStats &stats)
+void from_json(const nlohmann::json& j, SourceStats& stats)
 {
     j.at("spaceCount").get_to(stats.spaceCount);
     j.at("deviceCount").get_to(stats.deviceCount);

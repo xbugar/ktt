@@ -7,9 +7,9 @@
 namespace ktt::db
 {
 
-TransactionGuard::TransactionGuard(sqlite3 *connection) : Connection(connection)
+TransactionGuard::TransactionGuard(sqlite3* connection) : Connection(connection)
 {
-    char *errorMessage = nullptr;
+    char* errorMessage = nullptr;
     if (sqlite3_exec(Connection, "BEGIN", nullptr, nullptr, &errorMessage) != SQLITE_OK)
     {
         const std::string error = errorMessage != nullptr ? errorMessage : "unknown error";
@@ -26,7 +26,7 @@ TransactionGuard::~TransactionGuard()
 
 void TransactionGuard::Commit()
 {
-    char *errorMessage = nullptr;
+    char* errorMessage = nullptr;
     if (sqlite3_exec(Connection, "COMMIT", nullptr, nullptr, &errorMessage) != SQLITE_OK)
     {
         const std::string error = errorMessage != nullptr ? errorMessage : "unknown error";

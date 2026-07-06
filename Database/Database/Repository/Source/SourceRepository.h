@@ -24,25 +24,25 @@ struct Source
 class SourceRepository
 {
 public:
-    /** @fn static std::optional<Source> GetSourceByFingerprint(sqlite3 *connection, size_t sourceFingerprint)
+    /** @fn static std::optional<Source> GetSourceByFingerprint(sqlite3* connection, size_t sourceFingerprint)
      * Retrieves a source by its fingerprint hash.
      * @param connection SQLite database connection.
      * @param sourceFingerprint The source code fingerprint hash to search for.
      * @return Optional Source with populated id field, or std::nullopt if not found.
      * @throw KttException If query fails.
      */
-    static std::optional<Source> GetSource(sqlite3 *connection, size_t sourceFingerprint);
+    static std::optional<Source> GetSource(sqlite3* connection, size_t sourceFingerprint);
 
-    /** @fn static Source CreateSource(sqlite3 *connection, const Source &source)
+    /** @fn static Source CreateSource(sqlite3* connection, const Source& source)
      * Creates a new source record in the database.
      * @param connection SQLite database connection.
      * @param source Source information to insert (id field should be empty).
      * @return Source struct with populated id field.
      * @throw KttException If insertion fails.
      */
-    static Source CreateSource(sqlite3 *connection, const Source &source);
+    static Source CreateSource(sqlite3* connection, const Source& source);
 
-    /** @fn static Source GetOrCreateSource(sqlite3 *connection, Source source)
+    /** @fn static Source GetOrCreateSource(sqlite3* connection, Source source)
      * Gets or creates a source record in the database.
      * Attempts to retrieve existing source by fingerprint, creates new if not found.
      * @param connection SQLite database connection.
@@ -50,9 +50,9 @@ public:
      * @return Source struct with populated id field.
      * @throw KttException If operation fails.
      */
-    static Source GetOrCreateSource(sqlite3 *connection, Source source);
+    static Source GetOrCreateSource(sqlite3* connection, Source source);
 
-    /** @fn static std::optional<SourceStats> GetStatsForSource(sqlite3 *connection, size_t sourceFingerprint)
+    /** @fn static std::optional<SourceStats> GetStatsForSource(sqlite3* connection, size_t sourceFingerprint)
      * Retrieves statistics for a source.
      * Computes counts of tuning spaces, devices, runs, and results associated with a source.
      * @param connection SQLite database connection.
@@ -60,7 +60,7 @@ public:
      * @return Optional SourceStats containing counts, or std::nullopt if source not found.
      * @throw KttException If query fails.
      */
-    static std::optional<SourceStats> GetStatsForSource(sqlite3 *connection, size_t sourceFingerprint);
+    static std::optional<SourceStats> GetStatsForSource(sqlite3* connection, size_t sourceFingerprint);
 };
 
 } // namespace ktt::db

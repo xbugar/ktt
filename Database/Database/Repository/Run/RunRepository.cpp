@@ -8,14 +8,14 @@
 namespace ktt::db
 {
 
-size_t RunRepository::CreateRun(sqlite3 *connection, const Run &run)
+size_t RunRepository::CreateRun(sqlite3* connection, const Run& run)
 {
-    const char *runSQL = R"(
+    const char* runSQL = R"(
         INSERT INTO tuning_run (guid, space_id, device_id, device_api_id, output_format_id, input_data)
         VALUES (?, ?, ?, ?, ?, ?)
     )";
 
-    sqlite3_stmt *runStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* runStmt = DatabaseUtility::PrepareStatement(
         connection,
         runSQL,
         "Failed to prepare run INSERT statement: "
@@ -42,15 +42,15 @@ size_t RunRepository::CreateRun(sqlite3 *connection, const Run &run)
 }
 
 size_t RunRepository::CreateRunWithGuid(
-    sqlite3 *connection, const Run &run, const uuid &guid, const std::string &createdAt
+    sqlite3* connection, const Run& run, const uuid& guid, const std::string& createdAt
 )
 {
-    const char *runSQL = R"(
+    const char* runSQL = R"(
         INSERT INTO tuning_run (guid, space_id, device_id, device_api_id, output_format_id, input_data, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     )";
 
-    sqlite3_stmt *runStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* runStmt = DatabaseUtility::PrepareStatement(
         connection,
         runSQL,
         "Failed to prepare run INSERT statement: "
@@ -76,13 +76,13 @@ size_t RunRepository::CreateRunWithGuid(
     return sqlite3_last_insert_rowid(connection);
 }
 
-bool RunRepository::RunExists(sqlite3 *connection, const uuid &guid)
+bool RunRepository::RunExists(sqlite3* connection, const uuid& guid)
 {
-    const char *runSQL = R"(
+    const char* runSQL = R"(
         SELECT 1 FROM tuning_run WHERE guid = ? LIMIT 1
     )";
 
-    sqlite3_stmt *runStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* runStmt = DatabaseUtility::PrepareStatement(
         connection,
         runSQL,
         "Failed to prepare run existence SELECT statement: "
@@ -102,9 +102,9 @@ bool RunRepository::RunExists(sqlite3 *connection, const uuid &guid)
     return result == SQLITE_ROW;
 }
 
-std::vector<RunSyncRecord> RunRepository::GetAllRuns(sqlite3 *connection)
+std::vector<RunSyncRecord> RunRepository::GetAllRuns(sqlite3* connection)
 {
-    const char *runSql = R"(
+    const char* runSql = R"(
         SELECT
             tuning_run.id,
             tuning_run.guid,
@@ -129,7 +129,7 @@ std::vector<RunSyncRecord> RunRepository::GetAllRuns(sqlite3 *connection)
         ORDER BY tuning_run.id ASC
     )";
 
-    sqlite3_stmt *runStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* runStmt = DatabaseUtility::PrepareStatement(
         connection,
         runSql,
         "Failed to prepare tuning_run sync SELECT statement: "
@@ -190,10 +190,10 @@ std::vector<RunSyncRecord> RunRepository::GetAllRuns(sqlite3 *connection)
 }
 
 std::vector<RunQueryResult> RunRepository::GetRunsBySpaceId(
-    sqlite3 *connection, size_t spaceId, size_t offset, size_t limit
+    sqlite3* connection, size_t spaceId, size_t offset, size_t limit
 )
 {
-    const char *runSql = R"(
+    const char* runSql = R"(
         SELECT
             tuning_run.id,
             tuning_run.guid,
@@ -214,7 +214,7 @@ std::vector<RunQueryResult> RunRepository::GetRunsBySpaceId(
         LIMIT ? OFFSET ?
     )";
 
-    sqlite3_stmt *runStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* runStmt = DatabaseUtility::PrepareStatement(
         connection,
         runSql,
         "Failed to prepare tuning_run SELECT statement: "

@@ -7,14 +7,14 @@
 namespace ktt::db
 {
 
-std::string SerializeResultJsonT4(const KernelResult &result, const int indent)
+std::string SerializeResultJsonT4(const KernelResult& result, const int indent)
 {
     nlohmann::json serialized;
     to_json(serialized, as_T4<const KernelResult>(result));
     return serialized.dump(indent);
 }
 
-KernelResult DeserializeResultJsonT4(const std::string &text)
+KernelResult DeserializeResultJsonT4(const std::string& text)
 {
     KernelResult result;
     as_T4<KernelResult> wrapper(result);

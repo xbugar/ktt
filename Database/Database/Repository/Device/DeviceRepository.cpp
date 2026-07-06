@@ -8,15 +8,15 @@
 
 namespace ktt::db
 {
-size_t DeviceRepository::CreateDevice(sqlite3 *connection, const dbDeviceInfo &device)
+size_t DeviceRepository::CreateDevice(sqlite3* connection, const DbDeviceInfo& device)
 {
-    const char *deviceSql = R"(
+    const char* deviceSql = R"(
         INSERT INTO device_info
         (name, vendor, type)
         VALUES (?, ?, ?)
     )";
 
-    sqlite3_stmt *deviceStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* deviceStmt = DatabaseUtility::PrepareStatement(
         connection,
         deviceSql,
         "Failed to prepare device INSERT statement: "
@@ -36,19 +36,19 @@ size_t DeviceRepository::CreateDevice(sqlite3 *connection, const dbDeviceInfo &d
     }
 
     sqlite3_finalize(deviceStmt);
-    return static_cast<size_t>(sqlite3_last_insert_rowid(connection));
+    return sqlite3_last_insert_rowid(connection);
 }
 
-std::optional<dbDeviceInfo> DeviceRepository::GetDeviceInfo(sqlite3 *connection, const dbDeviceInfo &device)
+std::optional<DbDeviceInfo> DeviceRepository::GetDeviceInfo(sqlite3* connection, const DbDeviceInfo& device)
 {
-    const char *deviceSql = R"(
+    const char* deviceSql = R"(
         SELECT id, name, vendor, type
         FROM device_info
         WHERE name = ? AND vendor = ? AND type = ?
         LIMIT 1
     )";
 
-    sqlite3_stmt *deviceStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* deviceStmt = DatabaseUtility::PrepareStatement(
         connection,
         deviceSql,
         "Failed to prepare device SELECT statement: "
@@ -73,20 +73,20 @@ std::optional<dbDeviceInfo> DeviceRepository::GetDeviceInfo(sqlite3 *connection,
         throw KttException("Failed to execute device SELECT statement: " + error);
     }
 
-    const dbDeviceInfo output = dbDeviceInfo::FromRow(deviceStmt);
+    const DbDeviceInfo output = DbDeviceInfo::FromRow(deviceStmt);
     sqlite3_finalize(deviceStmt);
     return output;
 }
 
-size_t DeviceRepository::CreateDeviceApi(sqlite3 *connection, const DeviceApi &deviceApi)
+size_t DeviceRepository::CreateDeviceApi(sqlite3* connection, const DeviceApi& deviceApi)
 {
-    const char *deviceApiSql = R"(
+    const char* deviceApiSql = R"(
         INSERT INTO device_api
         (compute_api_id, version_major, version_minor, extensions)
         VALUES (?, ?, ?, ?)
     )";
 
-    sqlite3_stmt *deviceApiStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* deviceApiStmt = DatabaseUtility::PrepareStatement(
         connection,
         deviceApiSql,
         "Failed to prepare device_api INSERT statement: "
@@ -110,16 +110,16 @@ size_t DeviceRepository::CreateDeviceApi(sqlite3 *connection, const DeviceApi &d
     return sqlite3_last_insert_rowid(connection);
 }
 
-std::optional<DeviceApi> DeviceRepository::GetDeviceApi(sqlite3 *connection, const DeviceApi &deviceApi)
+std::optional<DeviceApi> DeviceRepository::GetDeviceApi(sqlite3* connection, const DeviceApi& deviceApi)
 {
-    const char *deviceApiSql = R"(
+    const char* deviceApiSql = R"(
         SELECT id, compute_api_id, version_major, version_minor, extensions
         FROM device_api
         WHERE compute_api_id = ? AND version_major = ? AND version_minor = ? AND extensions IS ?
         LIMIT 1
     )";
 
-    sqlite3_stmt *deviceApiStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* deviceApiStmt = DatabaseUtility::PrepareStatement(
         connection,
         deviceApiSql,
         "Failed to prepare device_api SELECT statement: "
@@ -150,11 +150,11 @@ std::optional<DeviceApi> DeviceRepository::GetDeviceApi(sqlite3 *connection, con
     return output;
 }
 
-Device DeviceRepository::GetOrCreateDevice(sqlite3 *connection, const Device &device)
+Device DeviceRepository::GetOrCreateDevice(sqlite3* connection, const Device& device)
 {
     Device output = device;
 
-    const dbDeviceInfo deviceInfo{device.id, device.name, device.vendor, device.type};
+    const DbDeviceInfo deviceInfo{device.id, device.name, device.vendor, device.type};
     if (auto existingDevice = GetDeviceInfo(connection, deviceInfo))
         output.id = existingDevice->id;
     else
@@ -176,17 +176,17 @@ Device DeviceRepository::GetOrCreateDevice(sqlite3 *connection, const Device &de
     return output;
 }
 
-dbDeviceInfo dbDeviceInfo::FromRow(sqlite3_stmt *stmt)
+DbDeviceInfo DbDeviceInfo::FromRow(sqlite3_stmt* stmt)
 {
-    return dbDeviceInfo{
+    return DbDeviceInfo{
         sqlite3_column_int64(stmt, 0),
-        reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)),
-        reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2)),
-        reinterpret_cast<const char *>(sqlite3_column_text(stmt, 3))
+        reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)),
+        reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)),
+        reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))
     };
 }
 
-DeviceApi DeviceApi::FromRow(sqlite3_stmt *stmt)
+DeviceApi DeviceApi::FromRow(sqlite3_stmt* stmt)
 {
     const bool extensionsIsNull = sqlite3_column_type(stmt, 4) == SQLITE_NULL;
     const bool majorIsNull = sqlite3_column_type(stmt, 2) == SQLITE_NULL;
@@ -202,9 +202,9 @@ DeviceApi DeviceApi::FromRow(sqlite3_stmt *stmt)
 }
 
 
-std::optional<DeviceApi> DeviceRepository::GetDeviceApiBySimpleQuery(sqlite3 *connection, const DeviceApi &deviceApi)
+std::optional<DeviceApi> DeviceRepository::GetDeviceApiBySimpleQuery(sqlite3* connection, const DeviceApi& deviceApi)
 {
-    const char *deviceApiSql = R"(
+    const char* deviceApiSql = R"(
         SELECT id, compute_api_id, version_major, version_minor, extensions
         FROM device_api
                 WHERE compute_api_id = ?
@@ -214,7 +214,7 @@ std::optional<DeviceApi> DeviceRepository::GetDeviceApiBySimpleQuery(sqlite3 *co
         LIMIT 1
     )";
 
-    sqlite3_stmt *deviceApiStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* deviceApiStmt = DatabaseUtility::PrepareStatement(
         connection,
         deviceApiSql,
         "Failed to prepare device_api SELECT statement: "

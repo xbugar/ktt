@@ -8,16 +8,16 @@
 namespace ktt::db
 {
 
-std::optional<Space> SpaceRepository::GetSpace(sqlite3 *connection, Space space)
+std::optional<Space> SpaceRepository::GetSpace(sqlite3* connection, Space space)
 {
-    const char *spaceSQL = R"(
+    const char* spaceSQL = R"(
         SELECT id, source_id, space_fingerprint, parameter_fingerprint
         FROM tuning_space
         WHERE source_id = ? AND space_fingerprint = ? AND parameter_fingerprint = ?
         LIMIT 1
     )";
 
-    sqlite3_stmt *spaceStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* spaceStmt = DatabaseUtility::PrepareStatement(
         connection,
         spaceSQL,
         "Failed to prepare space SELECT statement: "
@@ -57,14 +57,14 @@ std::optional<Space> SpaceRepository::GetSpace(sqlite3 *connection, Space space)
     return spaceResult;
 }
 
-Space SpaceRepository::CreateSpace(sqlite3 *connection, Space space)
+Space SpaceRepository::CreateSpace(sqlite3* connection, Space space)
 {
-    const char *spaceSQL = R"(
+    const char* spaceSQL = R"(
         INSERT INTO tuning_space (source_id, space_fingerprint, parameter_fingerprint)
         VALUES (?, ?, ?)
     )";
 
-    sqlite3_stmt *spaceStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* spaceStmt = DatabaseUtility::PrepareStatement(
         connection,
         spaceSQL,
         "Failed to prepare space INSERT statement: "
@@ -89,7 +89,7 @@ Space SpaceRepository::CreateSpace(sqlite3 *connection, Space space)
     return space;
 }
 
-Space SpaceRepository::GetOrCreateSpace(sqlite3 *connection, Space space)
+Space SpaceRepository::GetOrCreateSpace(sqlite3* connection, Space space)
 {
     if (auto existing = GetSpace(connection, space))
         return *existing;

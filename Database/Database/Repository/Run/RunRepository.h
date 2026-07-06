@@ -61,17 +61,17 @@ struct RunSyncRecord
 class RunRepository
 {
 public:
-    /** @fn static size_t CreateRun(sqlite3 *connection, const Run &run)
+    /** @fn static size_t CreateRun(sqlite3* connection, const Run& run)
      * Creates a new run record in the database.
      * @param connection SQLite database connection.
      * @param run Run information to insert.
      * @return Database ID of the newly created run.
      * @throw KttException If insertion fails.
      */
-    static size_t CreateRun(sqlite3 *connection, const Run &run);
+    static size_t CreateRun(sqlite3* connection, const Run& run);
 
-    /** @fn static size_t CreateRunWithGuid(sqlite3 *connection, const Run &run, const uuid &guid, const std::string
-     * &createdAt) Creates a new run record using a caller-supplied GUID and creation timestamp instead of generating
+    /** @fn static size_t CreateRunWithGuid(sqlite3* connection, const Run& run, const uuid& guid, const std::string&
+     * createdAt) Creates a new run record using a caller-supplied GUID and creation timestamp instead of generating
      * them. Used when copying a run from another database so its identity and creation time are preserved.
      * @param connection SQLite database connection.
      * @param run Run information to insert.
@@ -81,31 +81,31 @@ public:
      * @throw KttException If insertion fails.
      */
     static size_t CreateRunWithGuid(
-        sqlite3 *connection,
-        const Run &run,
-        const uuid &guid,
-        const std::string &createdAt
+        sqlite3* connection,
+        const Run& run,
+        const uuid& guid,
+        const std::string& createdAt
     );
 
-    /** @fn static bool RunExists(sqlite3 *connection, const uuid &guid)
+    /** @fn static bool RunExists(sqlite3* connection, const uuid& guid)
      * Checks whether a run with the given GUID already exists in the database.
      * @param connection SQLite database connection.
      * @param guid GUID to look for.
      * @return True if a run with the GUID exists, false otherwise.
      * @throw KttException If the query fails.
      */
-    static bool RunExists(sqlite3 *connection, const uuid &guid);
+    static bool RunExists(sqlite3* connection, const uuid& guid);
 
-    /** @fn static std::vector<RunSyncRecord> GetAllRuns(sqlite3 *connection)
+    /** @fn static std::vector<RunSyncRecord> GetAllRuns(sqlite3* connection)
      * Retrieves every run in the database together with the source, space and device data required to
      * recreate it elsewhere. Intended for copying runs between databases.
      * @param connection SQLite database connection.
      * @return Vector of RunSyncRecord objects, ordered by run ID.
      * @throw KttException If the query fails.
      */
-    static std::vector<RunSyncRecord> GetAllRuns(sqlite3 *connection);
+    static std::vector<RunSyncRecord> GetAllRuns(sqlite3* connection);
 
-    /** @fn static std::vector<RunQueryResult> GetRunsForSpacePaged(sqlite3 *connection, size_t spaceId, size_t offset,
+    /** @fn static std::vector<RunQueryResult> GetRunsForSpacePaged(sqlite3* connection, size_t spaceId, size_t offset,
      * size_t limit) Retrieves runs for a tuning space with pagination support. Useful for processing large result sets
      * in batches.
      * @param connection SQLite database connection.
@@ -116,7 +116,7 @@ public:
      * @throw KttException If query fails.
      */
     static std::vector<RunQueryResult> GetRunsBySpaceId(
-        sqlite3 *connection,
+        sqlite3* connection,
         size_t spaceId,
         size_t offset,
         size_t limit

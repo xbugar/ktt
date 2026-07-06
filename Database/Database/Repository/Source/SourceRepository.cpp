@@ -8,9 +8,9 @@
 namespace ktt::db
 {
 
-Source SourceRepository::CreateSource(sqlite3 *connection, const Source &source)
+Source SourceRepository::CreateSource(sqlite3* connection, const Source& source)
 {
-    const char *sourceSQL = R"(
+    const char* sourceSQL = R"(
             INSERT INTO tuning_source (source_fingerprint)
             VALUES (?)
         )";
@@ -39,9 +39,9 @@ Source SourceRepository::CreateSource(sqlite3 *connection, const Source &source)
 }
 
 
-std::optional<Source> SourceRepository::GetSource(sqlite3 *connection, const size_t sourceFingerprint)
+std::optional<Source> SourceRepository::GetSource(sqlite3* connection, const size_t sourceFingerprint)
 {
-    const char *sourceSQL = R"(
+    const char* sourceSQL = R"(
             SELECT id, source_fingerprint
             FROM tuning_source
             WHERE source_fingerprint = ?
@@ -84,7 +84,7 @@ std::optional<Source> SourceRepository::GetSource(sqlite3 *connection, const siz
     return source;
 }
 
-Source SourceRepository::GetOrCreateSource(sqlite3 *connection, Source source)
+Source SourceRepository::GetOrCreateSource(sqlite3* connection, Source source)
 {
     if (auto existingSource = GetSource(connection, source.sourceFingerprint))
         return *existingSource;
@@ -92,9 +92,9 @@ Source SourceRepository::GetOrCreateSource(sqlite3 *connection, Source source)
     return CreateSource(connection, source);
 }
 
-std::optional<SourceStats> SourceRepository::GetStatsForSource(sqlite3 *connection, const size_t sourceFingerprint)
+std::optional<SourceStats> SourceRepository::GetStatsForSource(sqlite3* connection, const size_t sourceFingerprint)
 {
-    const char *statsSql = R"(
+    const char* statsSql = R"(
         SELECT
             (SELECT COUNT(*) FROM tuning_space WHERE source_id = tuning_source.id) AS space_count,
             (SELECT COUNT(DISTINCT tuning_run.device_id)
@@ -115,7 +115,7 @@ std::optional<SourceStats> SourceRepository::GetStatsForSource(sqlite3 *connecti
         LIMIT 1
     )";
 
-    sqlite3_stmt *statsStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* statsStmt = DatabaseUtility::PrepareStatement(
         connection,
         statsSql,
         "Failed to prepare source stats SELECT statement: "

@@ -7,7 +7,7 @@
 namespace ktt::db
 {
 
-void Schema::CreateIfNotExists(sqlite3 *connection)
+void Schema::CreateIfNotExists(sqlite3* connection)
 {
     const auto createSchemaSQL = R"(
 CREATE TABLE IF NOT EXISTS compute_api
@@ -95,7 +95,7 @@ CREATE INDEX IF NOT EXISTS idx_tuning_result_run_id ON tuning_result (run_id);
 
 )";
 
-    char *errorMsg = nullptr;
+    char* errorMsg = nullptr;
 
     if (const int result = sqlite3_exec(connection, createSchemaSQL, nullptr, nullptr, &errorMsg); result != SQLITE_OK)
     {

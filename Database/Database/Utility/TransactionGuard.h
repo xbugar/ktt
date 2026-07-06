@@ -12,18 +12,18 @@ namespace ktt::db
 class TransactionGuard
 {
 public:
-    /** @fn explicit TransactionGuard(sqlite3 *connection)
+    /** @fn explicit TransactionGuard(sqlite3* connection)
      * Begins a transaction on the given connection.
      * @param connection SQLite database connection.
      * @throw KttException If the transaction cannot be started.
      */
-    explicit TransactionGuard(sqlite3 *connection);
+    explicit TransactionGuard(sqlite3* connection);
 
     /** Rolls the transaction back if it has not been committed. */
     ~TransactionGuard();
 
-    TransactionGuard(const TransactionGuard &) = delete;
-    TransactionGuard &operator=(const TransactionGuard &) = delete;
+    TransactionGuard(const TransactionGuard&) = delete;
+    TransactionGuard& operator=(const TransactionGuard&) = delete;
 
     /** @fn void Commit()
      * Commits the transaction. After a successful commit the guard no longer
@@ -33,7 +33,7 @@ public:
     void Commit();
 
 private:
-    sqlite3 *Connection;
+    sqlite3* Connection;
     bool Committed = false;
 };
 

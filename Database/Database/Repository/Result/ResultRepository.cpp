@@ -9,25 +9,25 @@ namespace ktt::db
 {
 
 void ResultRepository::CreateResults(
-    sqlite3 *connection,
+    sqlite3* connection,
     const size_t runId,
-    const std::vector<KernelResult> &results,
+    const std::vector<KernelResult>& results,
     const ktt::OutputFormat format,
     const int indentResultsJson
 )
 {
-    const char *resultSql = R"(
+    const char* resultSql = R"(
         INSERT INTO tuning_result (run_id, duration, result)
         VALUES (?, ?, ?)
     )";
 
-    sqlite3_stmt *resultStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* resultStmt = DatabaseUtility::PrepareStatement(
         connection,
         resultSql,
         "Failed to prepare result INSERT statement: "
     );
 
-    for (const auto &result : results)
+    for (const auto& result : results)
     {
         if (result.GetStatus() != ResultStatus::Ok)
             continue;
@@ -54,10 +54,10 @@ void ResultRepository::CreateResults(
 }
 
 std::vector<KernelResult> ResultRepository::SimpleGetBestResults(
-    sqlite3 *connection, size_t spaceId, const Device &device, uint32_t limit
+    sqlite3* connection, size_t spaceId, const Device& device, uint32_t limit
 )
 {
-    const char *resultSql = R"(
+    const char* resultSql = R"(
         SELECT tuning_result.result, tuning_run.output_format_id
         FROM tuning_result
         JOIN tuning_run ON tuning_run.id = tuning_result.run_id
@@ -83,7 +83,7 @@ std::vector<KernelResult> ResultRepository::SimpleGetBestResults(
         minorHigh = *device.cudaComputeCapabilityMinor + 1;
     }
 
-    sqlite3_stmt *resultStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* resultStmt = DatabaseUtility::PrepareStatement(
         connection,
         resultSql,
         "Failed to prepare tuning_result SELECT statement: "
@@ -126,7 +126,7 @@ std::vector<KernelResult> ResultRepository::SimpleGetBestResults(
 }
 
 std::vector<KernelResult> ResultRepository::ResultsByRunIds(
-    sqlite3 *connection, const std::vector<size_t> &runIds, uint32_t limit
+    sqlite3* connection, const std::vector<size_t>& runIds, uint32_t limit
 )
 {
     if (runIds.empty() || limit == 0)
@@ -137,7 +137,7 @@ std::vector<KernelResult> ResultRepository::ResultsByRunIds(
                             "WHERE tuning_result.run_id IN " +
                             DatabaseUtility::SqlList(runIds.size()) + " ORDER BY tuning_result.duration ASC LIMIT ?";
 
-    sqlite3_stmt *resultStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* resultStmt = DatabaseUtility::PrepareStatement(
         connection,
         resultSql.c_str(),
         "Failed to prepare tuning_result SELECT statement: "
@@ -175,16 +175,16 @@ std::vector<KernelResult> ResultRepository::ResultsByRunIds(
     return results;
 }
 
-std::vector<RawResult> ResultRepository::GetRawResultsByRunId(sqlite3 *connection, const size_t runId)
+std::vector<RawResult> ResultRepository::GetRawResultsByRunId(sqlite3* connection, const size_t runId)
 {
-    const char *resultSql = R"(
+    const char* resultSql = R"(
         SELECT duration, result
         FROM tuning_result
         WHERE run_id = ?
         ORDER BY id ASC
     )";
 
-    sqlite3_stmt *resultStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* resultStmt = DatabaseUtility::PrepareStatement(
         connection,
         resultSql,
         "Failed to prepare raw tuning_result SELECT statement: "
@@ -216,20 +216,20 @@ std::vector<RawResult> ResultRepository::GetRawResultsByRunId(sqlite3 *connectio
     return results;
 }
 
-void ResultRepository::InsertRawResults(sqlite3 *connection, const size_t runId, const std::vector<RawResult> &results)
+void ResultRepository::InsertRawResults(sqlite3* connection, const size_t runId, const std::vector<RawResult>& results)
 {
-    const char *resultSql = R"(
+    const char* resultSql = R"(
         INSERT INTO tuning_result (run_id, duration, result)
         VALUES (?, ?, ?)
     )";
 
-    sqlite3_stmt *resultStmt = DatabaseUtility::PrepareStatement(
+    sqlite3_stmt* resultStmt = DatabaseUtility::PrepareStatement(
         connection,
         resultSql,
         "Failed to prepare raw result INSERT statement: "
     );
 
-    for (const auto &result : results)
+    for (const auto& result : results)
     {
         sqlite3_bind_int64(resultStmt, 1, static_cast<sqlite3_int64>(runId));
         sqlite3_bind_int64(resultStmt, 2, result.duration);
