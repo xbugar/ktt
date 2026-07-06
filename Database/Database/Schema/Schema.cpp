@@ -1,7 +1,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <Schema/Schema.h>
+#include <Database/Schema/Schema.h>
 
 
 namespace ktt::db
@@ -20,6 +20,16 @@ INSERT INTO compute_api (id, name) VALUES (1, 'OpenCL') ON CONFLICT(name) DO NOT
 INSERT INTO compute_api (id, name) VALUES (2, 'CUDA') ON CONFLICT(name) DO NOTHING;
 INSERT INTO compute_api (id, name) VALUES (3, 'Vulkan') ON CONFLICT(name) DO NOTHING;
 INSERT INTO compute_api (id, name) VALUES (4, 'Cpp') ON CONFLICT(name) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS output_format
+(
+    id   INTEGER PRIMARY KEY,
+    name TEXT    NOT NULL UNIQUE
+);
+
+INSERT INTO output_format (id, name) VALUES (1, 'JSON') ON CONFLICT(name) DO NOTHING;
+INSERT INTO output_format (id, name) VALUES (2, 'JSON_T4') ON CONFLICT(name) DO NOTHING;
+INSERT INTO output_format (id, name) VALUES (3, 'XML') ON CONFLICT(name) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS device_info
 (
@@ -62,14 +72,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_tuning_space_fingerprints ON tuning_space 
 
 CREATE TABLE IF NOT EXISTS tuning_run
 (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    space_id      INTEGER NOT NULL REFERENCES tuning_space (id),
-    device_id     INTEGER NOT NULL REFERENCES device_info (id),
-    device_api_id INTEGER NOT NULL REFERENCES device_api (id),
-    created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
-    input_data         TEXT
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    guid             BLOB    NOT NULL UNIQUE,
+    space_id         INTEGER NOT NULL REFERENCES tuning_space (id),
+    device_id        INTEGER NOT NULL REFERENCES device_info (id),
+    device_api_id    INTEGER NOT NULL REFERENCES device_api (id),
+    output_format_id INTEGER NOT NULL REFERENCES output_format (id),
+    created_at       TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+    input_data       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_tuning_run_space_id ON tuning_run (space_id);
+CREATE INDEX IF NOT EXISTS idx_tuning_run_guid ON tuning_run (guid);
 
 CREATE TABLE IF NOT EXISTS tuning_result
 (

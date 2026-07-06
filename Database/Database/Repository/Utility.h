@@ -2,6 +2,8 @@
 #include <sqlite3.h>
 #include <string>
 
+#include <Database/Utility/Uuid.h>
+
 namespace ktt::db
 {
 /** @class DatabaseUtility
@@ -64,6 +66,28 @@ public:
      */
     static void BindOptionalText(sqlite3_stmt *statement, int index, const std::optional<std::string> &value);
 
+    /** @fn static uuid GenerateUuid()
+     * Generates a new random (version 4) UUID.
+     * @return A freshly generated UUID.
+     */
+    static uuid GenerateUuid();
+
+    /** @fn static void BindUuid(sqlite3_stmt *statement, int index, const uuid &value)
+     * Binds a UUID to a prepared statement parameter as a 16-byte BLOB.
+     * @param statement Prepared SQLite statement.
+     * @param index One-based parameter index.
+     * @param value UUID value to bind.
+     */
+    static void BindUuid(sqlite3_stmt *statement, int index, const uuid &value);
+
+    /** @fn static uuid ReadUuidColumn(sqlite3_stmt *statement, int column)
+     * Reads a UUID from a 16-byte BLOB column.
+     * @param statement Prepared SQLite statement.
+     * @param column Zero-based index of the column.
+     * @return The column value decoded as a UUID.
+     * @throw KttException If the column is not a 16-byte BLOB.
+     */
+    static uuid ReadUuidColumn(sqlite3_stmt *statement, int column);
 
     static std::string SqlList(const uint size);
 };

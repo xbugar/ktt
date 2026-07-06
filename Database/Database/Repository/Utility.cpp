@@ -1,5 +1,11 @@
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <functional>
+#include <random>
+
 #include <Api/KttException.h>
-#include <Repository/Utility.h>
+#include <Database/Repository/Utility.h>
 
 namespace ktt::db
 {
@@ -44,6 +50,24 @@ void DatabaseUtility::BindOptionalText(
         sqlite3_bind_text(statement, index, value->c_str(), -1, SQLITE_TRANSIENT);
     else
         sqlite3_bind_null(statement, index);
+}
+
+void DatabaseUtility::BindUuid(sqlite3_stmt *statement, const int index, const uuid &value)
+{
+    sqlite3_bind_blob(statement, index, value.data(), value.size(), SQLITE_TRANSIENT);
+}
+
+uuid DatabaseUtility::ReadUuidColumn(sqlite3_stmt *statement, const int column)
+{
+    const auto *bytes = static_cast<const std::uint8_t *>(sqlite3_column_blob(statement, column));
+    const int size = sqlite3_column_bytes(statement, column);
+
+    if (bytes == nullptr || size != 16)
+        throw KttException("Failed to read UUID column: expected a 16-byte BLOB");
+
+    uuid id;
+    std::copy(bytes, bytes + 16, id.begin());
+    return id;
 }
 
 std::string DatabaseUtility::SqlList(const uint size)

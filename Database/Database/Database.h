@@ -7,14 +7,14 @@
 
 #include <Api/Info/DatabaseTuningInfo.h>
 #include <Api/Output/KernelResult.h>
+#include <Database/Utility/JsonConverters.h>
 #include <Output/OutputFormat.h>
-#include <Utility/JsonConverters.h>
 
 struct sqlite3;
 
 /** @namespace ktt
-  * All classes, methods and type aliases related to KTT Database are located inside ktt namespace.
-  */
+ * All classes, methods and type aliases related to KTT Database are located inside ktt namespace.
+ */
 namespace ktt::db
 {
 
@@ -22,11 +22,12 @@ struct DeviceInfo;
 struct TuningInfo;
 struct TuningSpaceInfo;
 
+
 struct GetResultsQuery
 {
     const TuningSpaceInfo &source;
     std::optional<std::function<bool(const DeviceInfo &)>> devicePredicate;
-    std::optional<std::function<bool(const std::string &)>> stringPredicate;
+    std::optional<std::function<bool(const std::string &)>> inputPredicate;
     uint32_t limit{50};
 };
 
@@ -108,6 +109,18 @@ public:
      * @return Optional SourceStats containing counts, or std::nullopt if source not found.
      */
     std::optional<SourceStats> GetStatsForSource(size_t sourceFingerprint) const;
+
+    /** @fn size_t SyncFromFile(const std::filesystem::path &otherDatabasePath) const
+     * Copies all tuning data from another database file into this database.
+     * The other database is opened read-only and every run it contains is copied over, together with its
+     * tuning source, tuning space, device and results. Runs are matched by their GUID, so runs that already
+     * exist in this database are skipped; this makes the operation idempotent and safe to repeat. The copy
+     * runs inside a single transaction, so a failure leaves this database unchanged.
+     * @param otherDatabasePath Path to the database file to sync data from.
+     * @return Number of runs newly added to this database.
+     * @throw KttException If the file does not exist or the sync fails.
+     */
+    size_t SyncFromFile(const std::filesystem::path &otherDatabasePath) const;
 
 private:
     static constexpr size_t RunBatchSize = 500;

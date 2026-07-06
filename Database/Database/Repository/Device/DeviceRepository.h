@@ -13,7 +13,7 @@ namespace ktt::db
 /** @struct DbDeviceInfo
  * Represents device hardware information stored in the database.
  */
-struct DbDeviceInfo
+struct dbDeviceInfo
 {
     std::optional<size_t> id; ///< Unique database identifier.
     std::string name; ///< Device name.
@@ -25,7 +25,7 @@ struct DbDeviceInfo
      * @param stmt SQLite prepared statement positioned at a result row.
      * @return DbDeviceInfo populated from the current row.
      */
-    static DbDeviceInfo FromRow(sqlite3_stmt *stmt);
+    static dbDeviceInfo FromRow(sqlite3_stmt *stmt);
 };
 
 /** @struct DeviceApi
@@ -86,7 +86,7 @@ public:
      * @return Database ID of the newly created device record.
      * @throw KttException If insertion fails.
      */
-    static size_t CreateDevice(sqlite3 *connection, const DbDeviceInfo &device);
+    static size_t CreateDevice(sqlite3 *connection, const dbDeviceInfo &device);
 
     /** @fn static size_t CreateDeviceApi(sqlite3 *connection, const DeviceApi &deviceApi)
      * Creates a new device API record in the database.
@@ -105,7 +105,7 @@ public:
      * @return Optional DbDeviceInfo if found, std::nullopt otherwise.
      * @throw KttException If query fails.
      */
-    static std::optional<DbDeviceInfo> GetDeviceInfo(sqlite3 *connection, const DbDeviceInfo &device);
+    static std::optional<dbDeviceInfo> GetDeviceInfo(sqlite3 *connection, const dbDeviceInfo &device);
 
     /** @fn static std::optional<DeviceApi> GetDeviceApi(sqlite3 *connection, const DeviceApi &deviceApi)
      * Retrieves device API information from the database.

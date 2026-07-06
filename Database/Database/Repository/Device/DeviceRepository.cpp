@@ -3,12 +3,12 @@
 #include <sqlite3.h>
 
 #include <Api/KttException.h>
-#include <Repository/Device/DeviceRepository.h>
-#include <Repository/Utility.h>
+#include <Database/Repository/Device/DeviceRepository.h>
+#include <Database/Repository/Utility.h>
 
 namespace ktt::db
 {
-size_t DeviceRepository::CreateDevice(sqlite3 *connection, const DbDeviceInfo &device)
+size_t DeviceRepository::CreateDevice(sqlite3 *connection, const dbDeviceInfo &device)
 {
     const char *deviceSql = R"(
         INSERT INTO device_info
@@ -39,7 +39,7 @@ size_t DeviceRepository::CreateDevice(sqlite3 *connection, const DbDeviceInfo &d
     return static_cast<size_t>(sqlite3_last_insert_rowid(connection));
 }
 
-std::optional<DbDeviceInfo> DeviceRepository::GetDeviceInfo(sqlite3 *connection, const DbDeviceInfo &device)
+std::optional<dbDeviceInfo> DeviceRepository::GetDeviceInfo(sqlite3 *connection, const dbDeviceInfo &device)
 {
     const char *deviceSql = R"(
         SELECT id, name, vendor, type
@@ -73,7 +73,7 @@ std::optional<DbDeviceInfo> DeviceRepository::GetDeviceInfo(sqlite3 *connection,
         throw KttException("Failed to execute device SELECT statement: " + error);
     }
 
-    const DbDeviceInfo output = DbDeviceInfo::FromRow(deviceStmt);
+    const dbDeviceInfo output = dbDeviceInfo::FromRow(deviceStmt);
     sqlite3_finalize(deviceStmt);
     return output;
 }
@@ -154,7 +154,7 @@ Device DeviceRepository::GetOrCreateDevice(sqlite3 *connection, const Device &de
 {
     Device output = device;
 
-    const DbDeviceInfo deviceInfo{device.id, device.name, device.vendor, device.type};
+    const dbDeviceInfo deviceInfo{device.id, device.name, device.vendor, device.type};
     if (auto existingDevice = GetDeviceInfo(connection, deviceInfo))
         output.id = existingDevice->id;
     else
@@ -176,9 +176,9 @@ Device DeviceRepository::GetOrCreateDevice(sqlite3 *connection, const Device &de
     return output;
 }
 
-DbDeviceInfo DbDeviceInfo::FromRow(sqlite3_stmt *stmt)
+dbDeviceInfo dbDeviceInfo::FromRow(sqlite3_stmt *stmt)
 {
-    return DbDeviceInfo{
+    return dbDeviceInfo{
         sqlite3_column_int64(stmt, 0),
         reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)),
         reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2)),

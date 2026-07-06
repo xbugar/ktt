@@ -60,6 +60,21 @@ db.SaveResultsForSource(save, results);
 #endif
 ```
 
+## Sync from another database
+
+Merge all tuning data from another database file into the current one. Runs are matched by their GUID, so
+runs that already exist are skipped — the operation is idempotent and safe to repeat. Each newly copied run
+brings along its tuning source, tuning space, device and results, and the copy runs inside a single
+transaction (a failure leaves the current database unchanged). The other database is opened read-only.
+
+```cpp
+#ifdef KTT_DATABASE
+const auto db = ktt::db::Database(ktt::OutputFormat::JSON);
+const size_t added = db.SyncFromFile("/path/to/other-ktt.db");
+std::cout << "Added " << added << " new run(s)" << std::endl;
+#endif
+```
+
 ## JSON indentation
 
 Database stores tuning results as JSON in the database. Indentation is useful for SQL reader apps (e.g., DBeaver) that display JSON text more clearly. The Database constructor takes an indentation size (default 2):

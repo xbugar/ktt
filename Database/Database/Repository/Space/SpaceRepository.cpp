@@ -2,8 +2,8 @@
 #include <string>
 
 #include <Api/KttException.h>
-#include <Repository/Space/SpaceRepository.h>
-#include <Repository/Utility.h>
+#include <Database/Repository/Space/SpaceRepository.h>
+#include <Database/Repository/Utility.h>
 
 namespace ktt::db
 {

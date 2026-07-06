@@ -1,9 +1,10 @@
 #pragma once
 
-#include <Database.h>
 #include <memory>
 #include <optional>
 #include <sqlite3.h>
+
+#include <Database/Database.h>
 
 namespace ktt::db
 {

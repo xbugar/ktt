@@ -1,16 +1,18 @@
-#include <Database.h>
 #include <filesystem>
 #include <sqlite3.h>
 #include <utility>
 
 #include <Api/Info/DatabaseTuningInfo.h>
+#include <Api/KttException.h>
+#include <Database/Database.h>
+#include <Database/Repository/Device/DeviceRepository.h>
+#include <Database/Repository/Result/ResultRepository.h>
+#include <Database/Repository/Run/RunRepository.h>
+#include <Database/Repository/Source/SourceRepository.h>
+#include <Database/Repository/Space/SpaceRepository.h>
+#include <Database/Sync/DatabaseSync.h>
 #include <Output/OutputFormat.h>
-#include <Repository/Device/DeviceRepository.h>
-#include <Repository/Result/ResultRepository.h>
-#include <Repository/Run/RunRepository.h>
-#include <Repository/Source/SourceRepository.h>
-#include <Repository/Space/SpaceRepository.h>
-#include <Schema/Schema.h>
+#include <Database/Schema/Schema.h>
 #include <Utility/Logger/Logger.h>
 
 namespace ktt::db
@@ -102,10 +104,11 @@ void Database::SaveResultsForSource(const TuningInfo &tuningInfo, std::vector<Ke
          *space.id,
          *device.id,
          *device.apiId,
+         OutputFormat,
          tuningInfo.inputData}
     );
 
-    ResultRepository::CreateResults(Connection, runId, results, IndentResultsJson);
+    ResultRepository::CreateResults(Connection, runId, results, OutputFormat, IndentResultsJson);
 }
 
 std::vector<KernelResult> Database::SimpleGetBestResultsForSource(const TuningInfo &t, uint32_t limit) const
@@ -189,10 +192,10 @@ std::vector<KernelResult> Database::GetBestResults(const GetResultsQuery &query)
             bool keep = true;
             if (query.devicePredicate)
                 keep = keep && (*query.devicePredicate)(run.deviceInfo);
-            if (query.stringPredicate)
+            if (query.inputPredicate)
             {
                 if (run.inputData)
-                    keep = keep && (*query.stringPredicate)(*run.inputData);
+                    keep = keep && (*query.inputPredicate)(*run.inputData);
                 else
                     keep = false;
             }
@@ -225,6 +228,40 @@ std::vector<KernelResult> Database::GetBestResults(const GetResultsQuery &query)
 std::optional<SourceStats> Database::GetStatsForSource(const size_t sourceFingerprint) const
 {
     return SourceRepository::GetStatsForSource(Connection, sourceFingerprint);
+}
+
+size_t Database::SyncFromFile(const std::filesystem::path &otherDatabasePath) const
+{
+    if (!std::filesystem::exists(otherDatabasePath))
+        throw KttException("Cannot sync: database file does not exist: " + otherDatabasePath.string());
+
+    sqlite3 *source = nullptr;
+    const int open = sqlite3_open_v2(otherDatabasePath.string().c_str(), &source, SQLITE_OPEN_READONLY, nullptr);
+
+    if (open != SQLITE_OK)
+    {
+        const std::string error = sqlite3_errmsg(source);
+        sqlite3_close(source);
+        throw KttException("Failed to open source database for sync: " + error);
+    }
+
+    ktt::Logger::LogInfo(
+        "Syncing runs from " + otherDatabasePath.string() + " into " + DatabasePath.string()
+    );
+
+    size_t inserted = 0;
+    try
+    {
+        inserted = DatabaseSync::SyncRuns(Connection, source);
+    }
+    catch (...)
+    {
+        sqlite3_close(source);
+        throw;
+    }
+
+    sqlite3_close(source);
+    return inserted;
 }
 
 } // namespace ktt::db
