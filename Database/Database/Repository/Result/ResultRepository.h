@@ -73,7 +73,7 @@ public:
         sqlite3* connection, const std::vector<size_t>& runIds, uint32_t limit
     );
 
-    /** @fn static std::vector<RawResult> GetRawResultsForRun(sqlite3* connection, size_t runId)
+    /** @fn static std::vector<RawResult> GetRawResultsByRunId(sqlite3* connection, size_t runId)
      * Retrieves the results of a run in their stored, serialized form, without deserializing them.
      * Intended for copying results between databases.
      * @param connection SQLite database connection.

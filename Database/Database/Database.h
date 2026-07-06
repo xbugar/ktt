@@ -12,8 +12,8 @@
 
 struct sqlite3;
 
-/** @namespace ktt
- * All classes, methods and type aliases related to KTT Database are located inside ktt namespace.
+/** @namespace ktt::db
+ * All classes, methods and type aliases related to KTT Database are located inside the ktt::db namespace.
  */
 namespace ktt::db
 {
@@ -25,9 +25,9 @@ struct TuningSpaceInfo;
 
 struct GetBestResultsQuery
 {
-    const TuningSpaceInfo& source;
-    std::optional<std::function<bool(const DeviceInfo&)>> devicePredicate;
-    std::optional<std::function<bool(const std::string&)>> inputPredicate;
+    const TuningSpaceInfo &source;
+    std::optional<std::function<bool(const DeviceInfo &)>> devicePredicate;
+    std::optional<std::function<bool(const std::string &)>> inputPredicate;
     uint32_t limit{50};
 };
 
@@ -42,7 +42,7 @@ struct SourceStats
     size_t resultCount{}; ///< Total number of kernel results for the source.
 };
 
-/** @struct SaveOption
+/** @struct SaveOptions
  * Options controlling how kernel results are serialized when saved.
  */
 struct SaveOptions
@@ -80,7 +80,7 @@ public:
      * @param connection An open SQLite connection handle. Must not be null.
      * @throw KttException If the connection is null.
      */
-    explicit Database(sqlite3* connection);
+    explicit Database(sqlite3 *connection);
 
     /** @fn ~Database()
      * Destructor that closes the database connection and releases resources.
@@ -88,19 +88,19 @@ public:
     ~Database();
 
     // Disable copy
-    Database(const Database&) = delete;
-    Database& operator=(const Database&) = delete;
+    Database(const Database &) = delete;
+    Database &operator=(const Database &) = delete;
 
-    /** @fn void SaveResults(const TuningInfo& source, std::vector<KernelResult> results, SaveOption option) const
+    /** @fn void SaveResults(const TuningInfo& source, std::vector<KernelResult> results, SaveOptions options = {}) const
      * Saves kernel execution results for a specific tuning source and configuration.
      * Stores results in the database, organizing them by source fingerprint, tuning space, device,
      * and run information. Creates new records in the database schema if they don't exist.
      * @param source The TuningInfo containing source fingerprint, space info, device info, and input data.
      * @param results Vector of KernelResult objects containing execution data to be stored.
-     * @param option Output format and JSON indentation used to serialize the results.
-     *               Defaults to JSON with an indentation of 2.
+     * @param options Output format and JSON indentation used to serialize the results.
+     *                Defaults to JSON with an indentation of 2.
      */
-    void SaveResults(const TuningInfo& source, std::vector<KernelResult> results, SaveOptions options = {}) const;
+    void SaveResults(const TuningInfo &source, std::vector<KernelResult> results, SaveOptions options = {}) const;
 
     /** @fn std::vector<KernelResult> SimpleGetBestResults(const TuningInfo& source, uint32_t limit = 50) const
      * Retrieves the best (fastest) kernel results for a given tuning source and configuration.
@@ -109,17 +109,17 @@ public:
      * @param limit Maximum number of results to return. Default is 50.
      * @return Vector of KernelResult objects sorted by execution time (fastest first).
      */
-    std::vector<KernelResult> SimpleGetBestResults(const TuningInfo& source, uint32_t limit = 50) const;
+    std::vector<KernelResult> SimpleGetBestResults(const TuningInfo &source, uint32_t limit = 50) const;
 
-    /** @fn std::vector<KernelResult> GetBestResultsQuery(const GetResultsQuery& query) const
+    /** @fn std::vector<KernelResult> GetBestResults(const GetBestResultsQuery& query) const
      * Retrieves the best kernel results using advanced query filters and predicates.
      * Allows complex queries with device and string (input data) predicates for fine-grained filtering.
      * Results are paginated internally and sorted by execution time.
-     * @param query A GetResultsQuery struct containing source info, optional device and string predicates,
+     * @param query A GetBestResultsQuery struct containing source info, optional device and string predicates,
      *              and a result limit.
      * @return Vector of KernelResult objects sorted by execution time, limited to the specified count.
      */
-    std::vector<KernelResult> GetBestResults(const GetBestResultsQuery& query) const;
+    std::vector<KernelResult> GetBestResults(const GetBestResultsQuery &query) const;
 
     /** @fn std::optional<SourceStats> GetStatsForSource(size_t sourceFingerprint) const
      * Retrieves statistical information for a given tuning source.
@@ -139,7 +139,7 @@ public:
      * @return Number of runs newly added to this database.
      * @throw KttException If the file does not exist or the sync fails.
      */
-    size_t SyncFromFile(const std::filesystem::path& otherDatabasePath) const;
+    size_t SyncFromFile(const std::filesystem::path &otherDatabasePath) const;
 
 private:
     static constexpr size_t RunBatchSize = 500;
@@ -156,8 +156,8 @@ private:
      */
     void CloseDatabase() const;
 
-    std::filesystem::path DatabasePath;
-    mutable sqlite3* Connection;
-    bool OwnsConnection{true}; ///< Whether this instance owns Connection and must close it on destruction.
+    std::filesystem::path m_DatabasePath;
+    mutable sqlite3 *m_Connection;
+    bool m_OwnsConnection{true}; ///< Whether this instance owns Connection and must close it on destruction.
 };
 } // namespace ktt::db

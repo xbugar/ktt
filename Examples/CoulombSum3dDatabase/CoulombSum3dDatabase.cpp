@@ -257,7 +257,6 @@ int main(int argc, char** argv)
         preciseParams = ktt::PreciseMeasurementParameters(2000, 20000, 0.005, ktt::DurationCalculationMethod::Minimum);
     }
 
-
     /**
      * Database integration example
      * The following code demonstrates how to load previous results from the database and save new results after tuning.

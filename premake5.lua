@@ -659,6 +659,18 @@ project "CoulombSum3dOpenCl"
     links {"ktt"}
     enableOpenMP()
 
+project "CoulombSum3dDatabaseOpenCl"
+    kind "ConsoleApp"
+    files {"Examples/CoulombSum3dDatabase/*.cpp", "Examples/CoulombSum3dDatabase/*.cl"}
+    includedirs {"Source"}
+    defines {"KTT_OPENCL_EXAMPLE"}
+    if _OPTIONS["database"] then
+        defines {"KTT_DATABASE"}
+        includedirs {"Database", "Libraries/Json-3.9.1"}
+    end
+    links {"ktt"}
+    enableOpenMP()
+
 project "CoulombSum3dIterativeOpenCl"
     kind "ConsoleApp"
     files {"Examples/CoulombSum3dIterative/*.cpp", "Examples/CoulombSum3dIterative/*.cl"}
@@ -858,6 +870,18 @@ project "CoulombSum3dCpp"
     files {"Examples/CoulombSum3d/*.cpp", "Examples/CoulombSum3d/*.cppkernel"}
     includedirs {"Source"}
     defines {"KTT_CPP_EXAMPLE"}
+    links {"ktt"}
+    enableOpenMP()
+
+project "CoulombSum3dDatabaseCpp"
+    kind "ConsoleApp"
+    files {"Examples/CoulombSum3dDatabase/*.cpp", "Examples/CoulombSum3dDatabase/*.cppkernel"}
+    includedirs {"Source"}
+    defines {"KTT_CPP_EXAMPLE"}
+    if _OPTIONS["database"] then
+        defines {"KTT_DATABASE"}
+        includedirs {"Database", "Libraries/Json-3.9.1"}
+    end
     links {"ktt"}
     enableOpenMP()
 

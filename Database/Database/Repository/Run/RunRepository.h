@@ -105,7 +105,7 @@ public:
      */
     static std::vector<RunSyncRecord> GetAllRuns(sqlite3* connection);
 
-    /** @fn static std::vector<RunQueryResult> GetRunsForSpacePaged(sqlite3* connection, size_t spaceId, size_t offset,
+    /** @fn static std::vector<RunQueryResult> GetRunsBySpaceId(sqlite3* connection, size_t spaceId, size_t offset,
      * size_t limit) Retrieves runs for a tuning space with pagination support. Useful for processing large result sets
      * in batches.
      * @param connection SQLite database connection.

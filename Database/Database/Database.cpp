@@ -10,41 +10,41 @@
 #include <Database/Repository/Run/RunRepository.h>
 #include <Database/Repository/Source/SourceRepository.h>
 #include <Database/Repository/Space/SpaceRepository.h>
-#include <Database/Utility/TransactionGuard.h>
 #include <Database/Schema/Schema.h>
+#include <Database/Utility/TransactionGuard.h>
 #include <Output/OutputFormat.h>
 #include <Utility/Logger/Logger.h>
 
 namespace ktt::db
 {
 
-Database::Database() : Connection(nullptr)
+Database::Database() : m_Connection(nullptr)
 {
-    DatabasePath = std::filesystem::path(std::getenv("HOME")) / ".local/share/ktt";
-    std::filesystem::create_directories(DatabasePath);
-    DatabasePath /= "ktt.db";
+    m_DatabasePath = std::filesystem::path(std::getenv("HOME")) / ".local/share/ktt";
+    std::filesystem::create_directories(m_DatabasePath);
+    m_DatabasePath /= "ktt.db";
 
-    ktt::Logger::LogInfo("Initializing database at " + DatabasePath.string());
+    ktt::Logger::LogInfo("Initializing database at " + m_DatabasePath.string());
     OpenOrCreateDatabase();
 }
 
-Database::Database(std::filesystem::path databasePath) : DatabasePath(std::move(databasePath)), Connection(nullptr)
+Database::Database(std::filesystem::path databasePath) : m_DatabasePath(std::move(databasePath)), m_Connection(nullptr)
 {
-    ktt::Logger::LogInfo("Initializing database at " + DatabasePath.string());
+    ktt::Logger::LogInfo("Initializing database at " + m_DatabasePath.string());
     OpenOrCreateDatabase();
 }
 
-Database::Database(sqlite3* connection) : Connection(connection), OwnsConnection(false)
+Database::Database(sqlite3 *connection) : m_Connection(connection), m_OwnsConnection(false)
 {
-    if (Connection == nullptr)
+    if (m_Connection == nullptr)
         throw KttException("Cannot construct Database from a null SQLite connection");
 
-    const char* filename = sqlite3_db_filename(Connection, "main");
-    DatabasePath = (filename != nullptr) ? std::filesystem::path(filename) : std::filesystem::path();
+    const char *filename = sqlite3_db_filename(m_Connection, "main");
+    m_DatabasePath = (filename != nullptr) ? std::filesystem::path(filename) : std::filesystem::path();
 
-    ktt::Logger::LogInfo("Initializing database from existing SQLite connection at " + DatabasePath.string());
-    sqlite3_exec(Connection, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
-    Schema::CreateIfNotExists(Connection);
+    ktt::Logger::LogInfo("Initializing database from existing SQLite connection at " + m_DatabasePath.string());
+    sqlite3_exec(m_Connection, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
+    Schema::CreateIfNotExists(m_Connection);
 }
 
 
@@ -55,85 +55,84 @@ Database::~Database()
 
 void Database::OpenOrCreateDatabase() const
 {
-    if (Connection != nullptr)
+    if (m_Connection != nullptr)
         return;
 
-    const int db = sqlite3_open(DatabasePath.string().c_str(), &Connection);
+    const int db = sqlite3_open(m_DatabasePath.string().c_str(), &m_Connection);
 
     if (db != SQLITE_OK)
     {
-        std::string error = sqlite3_errmsg(Connection);
-        sqlite3_close(Connection);
-        Connection = nullptr;
+        std::string error = sqlite3_errmsg(m_Connection);
+        sqlite3_close(m_Connection);
+        m_Connection = nullptr;
         throw std::runtime_error("Failed to open or create database: " + error);
     }
-    sqlite3_exec(Connection, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
-    Schema::CreateIfNotExists(Connection);
+    sqlite3_exec(m_Connection, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr);
+    Schema::CreateIfNotExists(m_Connection);
 }
 
 void Database::CloseDatabase() const
 {
-    if (OwnsConnection && Connection != nullptr)
+    if (m_OwnsConnection && m_Connection != nullptr)
     {
-        sqlite3_close(Connection);
-        Connection = nullptr;
+        sqlite3_close(m_Connection);
+        m_Connection = nullptr;
     }
 }
 
-void Database::SaveResults(const TuningInfo& tuningInfo, std::vector<KernelResult> results, SaveOptions option) const
+void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResult> results, SaveOptions option) const
 {
     try
     {
-        TransactionGuard transaction(Connection);
-        
+        TransactionGuard transaction(m_Connection);
+
         const auto source = SourceRepository::GetOrCreateSource(
-            Connection,
+            m_Connection,
             {std::nullopt, tuningInfo.spaceInfo.sourceFingerprint}
         );
 
         const auto space = SpaceRepository::GetOrCreateSpace(
-            Connection,
+            m_Connection,
             {std::nullopt, // space Id
-            *source.id,
-            tuningInfo.spaceInfo.parameterFingerprint,
-            tuningInfo.spaceInfo.spaceFingerprint}
+             *source.id,
+             tuningInfo.spaceInfo.parameterFingerprint,
+             tuningInfo.spaceInfo.spaceFingerprint}
         );
 
         const auto device = DeviceRepository::GetOrCreateDevice(
-            Connection,
+            m_Connection,
             {std::nullopt, // device Id
-            std::nullopt, // api Id
-            tuningInfo.device.name,
-            tuningInfo.device.vendor,
-            tuningInfo.device.type,
-            tuningInfo.device.computeApi,
-            tuningInfo.device.extensions,
-            tuningInfo.device.cudaComputeCapabilityMajor,
-            tuningInfo.device.cudaComputeCapabilityMinor}
+             std::nullopt, // api Id
+             tuningInfo.device.name,
+             tuningInfo.device.vendor,
+             tuningInfo.device.type,
+             tuningInfo.device.computeApi,
+             tuningInfo.device.extensions,
+             tuningInfo.device.cudaComputeCapabilityMajor,
+             tuningInfo.device.cudaComputeCapabilityMinor}
         );
 
         const size_t runId = RunRepository::CreateRun(
-            Connection,
+            m_Connection,
             {std::nullopt, // run Id
-            *space.id,
-            *device.id,
-            *device.apiId,
-            option.format,
-            tuningInfo.inputData}
+             *space.id,
+             *device.id,
+             *device.apiId,
+             option.format,
+             tuningInfo.inputData}
         );
 
-        ResultRepository::CreateResults(Connection, runId, results, option.format, option.indent);
+        ResultRepository::CreateResults(m_Connection, runId, results, option.format, option.indent);
         transaction.Commit();
-    }
-    catch (...)
+    } catch (...)
     {
         throw;
     }
 }
 
-std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo& t, uint32_t limit) const
+std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo &t, uint32_t limit) const
 {
-    const auto source = SourceRepository::GetSource(Connection, t.spaceInfo.sourceFingerprint);
+    const auto source = SourceRepository::GetSource(m_Connection, t.spaceInfo.sourceFingerprint);
     if (source == std::nullopt)
     {
         ktt::Logger::LogInfo("No results found for this source");
@@ -141,7 +140,7 @@ std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo& t, ui
     }
 
     const auto space = SpaceRepository::GetSpace(
-        Connection,
+        m_Connection,
         {std::nullopt, // space Id
          source.value().id.value(),
          t.spaceInfo.parameterFingerprint,
@@ -154,7 +153,7 @@ std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo& t, ui
     }
 
     return ResultRepository::SimpleGetBestResults(
-        Connection,
+        m_Connection,
         space.value().id.value(),
         {std::nullopt, // device Id
          std::nullopt, // api Id
@@ -169,12 +168,12 @@ std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo& t, ui
     );
 }
 
-std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery& query) const
+std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery &query) const
 {
     if (query.limit <= 0)
         return {};
 
-    const auto source = SourceRepository::GetSource(Connection, query.source.sourceFingerprint);
+    const auto source = SourceRepository::GetSource(m_Connection, query.source.sourceFingerprint);
     if (source == std::nullopt)
     {
         ktt::Logger::LogInfo("No results found for this source");
@@ -182,7 +181,7 @@ std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery& qu
     }
 
     const auto space = SpaceRepository::GetSpace(
-        Connection,
+        m_Connection,
         {std::nullopt, // space Id
          source.value().id.value(),
          query.source.parameterFingerprint,
@@ -197,9 +196,9 @@ std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery& qu
     std::vector<KernelResult> bestResults;
     size_t offset = 0;
 
-    for (auto runs = RunRepository::GetRunsBySpaceId(Connection, space.value().id.value(), offset, RunBatchSize);
+    for (auto runs = RunRepository::GetRunsBySpaceId(m_Connection, space.value().id.value(), offset, RunBatchSize);
          !runs.empty();
-         runs = RunRepository::GetRunsBySpaceId(Connection, space.value().id.value(), offset, RunBatchSize))
+         runs = RunRepository::GetRunsBySpaceId(m_Connection, space.value().id.value(), offset, RunBatchSize))
     {
 
         offset += runs.size();
@@ -207,7 +206,7 @@ std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery& qu
         std::vector<size_t> runIds;
         runIds.reserve(runs.size());
 
-        for (const auto& run : runs)
+        for (const auto &run : runs)
         {
             bool keep = true;
             if (query.devicePredicate)
@@ -227,14 +226,14 @@ std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery& qu
         if (runIds.empty())
             continue;
 
-        auto batchResults = ResultRepository::ResultsByRunIds(Connection, runIds, query.limit);
+        auto batchResults = ResultRepository::ResultsByRunIds(m_Connection, runIds, query.limit);
 
         if (batchResults.empty())
             continue;
 
         bestResults.insert(bestResults.end(), batchResults.begin(), batchResults.end());
 
-        std::sort(bestResults.begin(), bestResults.end(), [](const KernelResult& left, const KernelResult& right) {
+        std::sort(bestResults.begin(), bestResults.end(), [](const KernelResult &left, const KernelResult &right) {
             return left.GetTotalDuration() < right.GetTotalDuration();
         });
 
@@ -247,15 +246,15 @@ std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery& qu
 
 std::optional<SourceStats> Database::GetStatsForSource(const size_t sourceFingerprint) const
 {
-    return SourceRepository::GetStatsForSource(Connection, sourceFingerprint);
+    return SourceRepository::GetStatsForSource(m_Connection, sourceFingerprint);
 }
 
-size_t Database::SyncFromFile(const std::filesystem::path& sourceDatabase) const
+size_t Database::SyncFromFile(const std::filesystem::path &sourceDatabase) const
 {
     if (!std::filesystem::exists(sourceDatabase))
         throw KttException("Cannot sync: database file does not exist: " + sourceDatabase.string());
 
-    sqlite3* source = nullptr;
+    sqlite3 *source = nullptr;
     const int open = sqlite3_open_v2(sourceDatabase.string().c_str(), &source, SQLITE_OPEN_READONLY, nullptr);
 
     if (open != SQLITE_OK)
@@ -265,32 +264,32 @@ size_t Database::SyncFromFile(const std::filesystem::path& sourceDatabase) const
         throw KttException("Failed to open source database for sync: " + error);
     }
 
-    ktt::Logger::LogInfo("Syncing runs from " + sourceDatabase.string() + " into " + DatabasePath.string());
+    ktt::Logger::LogInfo("Syncing runs from " + sourceDatabase.string() + " into " + m_DatabasePath.string());
 
     size_t inserted = 0;
     try
     {
-        TransactionGuard transaction(Connection);
+        TransactionGuard transaction(m_Connection);
 
         const auto records = RunRepository::GetAllRuns(source);
 
-        for (const auto& record : records)
+        for (const auto &record : records)
         {
-            if (RunRepository::RunExists(Connection, record.guid))
+            if (RunRepository::RunExists(m_Connection, record.guid))
                 continue;
 
             const auto sourceRow = SourceRepository::GetOrCreateSource(
-                Connection,
+                m_Connection,
                 {std::nullopt, record.sourceFingerprint}
             );
 
             const auto space = SpaceRepository::GetOrCreateSpace(
-                Connection,
+                m_Connection,
                 {std::nullopt, *sourceRow.id, record.parameterFingerprint, record.spaceFingerprint}
             );
 
             const auto device = DeviceRepository::GetOrCreateDevice(
-                Connection,
+                m_Connection,
                 {std::nullopt, // device Id
                  std::nullopt, // api Id
                  record.deviceInfo.name,
@@ -303,7 +302,7 @@ size_t Database::SyncFromFile(const std::filesystem::path& sourceDatabase) const
             );
 
             const size_t newRunId = RunRepository::CreateRunWithGuid(
-                Connection,
+                m_Connection,
                 {std::nullopt, // run Id
                  *space.id,
                  *device.id,
@@ -315,7 +314,7 @@ size_t Database::SyncFromFile(const std::filesystem::path& sourceDatabase) const
             );
 
             const auto rawResults = ResultRepository::GetRawResultsByRunId(source, record.runId);
-            ResultRepository::InsertRawResults(Connection, newRunId, rawResults);
+            ResultRepository::InsertRawResults(m_Connection, newRunId, rawResults);
 
             ++inserted;
         }

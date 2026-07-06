@@ -117,7 +117,7 @@ public:
      */
     static std::optional<DeviceApi> GetDeviceApi(sqlite3* connection, const DeviceApi& deviceApi);
 
-    /** @fn static std::optional<DeviceApi> GetDeviceApiForSimpleQuery(sqlite3* connection, const DeviceApi& deviceApi)
+    /** @fn static std::optional<DeviceApi> GetDeviceApiBySimpleQuery(sqlite3* connection, const DeviceApi& deviceApi)
      * Retrieves device API information using relaxed matching criteria.
      * Uses "IS" NULL comparisons for more flexible matching.
      * @param connection SQLite database connection.

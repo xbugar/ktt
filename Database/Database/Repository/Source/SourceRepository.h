@@ -24,7 +24,7 @@ struct Source
 class SourceRepository
 {
 public:
-    /** @fn static std::optional<Source> GetSourceByFingerprint(sqlite3* connection, size_t sourceFingerprint)
+    /** @fn static std::optional<Source> GetSource(sqlite3* connection, size_t sourceFingerprint)
      * Retrieves a source by its fingerprint hash.
      * @param connection SQLite database connection.
      * @param sourceFingerprint The source code fingerprint hash to search for.
