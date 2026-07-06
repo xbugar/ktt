@@ -189,7 +189,7 @@ std::vector<RunSyncRecord> RunRepository::GetAllRuns(sqlite3 *connection)
     return runs;
 }
 
-std::vector<RunQueryResult> RunRepository::GetRunsForSpacePaged(
+std::vector<RunQueryResult> RunRepository::GetRunsBySpaceId(
     sqlite3 *connection, size_t spaceId, size_t offset, size_t limit
 )
 {

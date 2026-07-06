@@ -1,66 +1,18 @@
-#include <Database/Repository/Result/ResultRepository.h>
-
-#include <pugixml.hpp>
 #include <sqlite3.h>
-#include <sstream>
 
 #include <Api/KttException.h>
-#include <Output/OutputFormat.h>
-#include <Output/XmlConverters.h>
 #include <Database/Repository/Result/ResultRepository.h>
-#include <Database/Repository/Result/ResultSerialization.h>
 #include <Database/Repository/Utility.h>
+#include <Output/OutputFormat.h>
 
 namespace ktt::db
 {
 
-namespace
-{
-
-/** Serializes a single kernel result into the textual representation of the given output format. */
-std::string SerializeResult(const KernelResult &result, const ktt::OutputFormat format, const int indent)
-{
-    switch (format)
-    {
-    case ktt::OutputFormat::JSON_T4:
-        return SerializeResultJsonT4(result, indent);
-    case ktt::OutputFormat::XML:
-    {
-        pugi::xml_document document;
-        AppendKernelResult(document, result);
-        std::ostringstream stream;
-        document.save(stream);
-        return stream.str();
-    }
-    case ktt::OutputFormat::JSON:
-    default:
-        return SerializeResultJson(result, indent);
-    }
-}
-
-/** Parses a stored result string back into a KernelResult using the format it was serialized with. */
-KernelResult DeserializeResult(const std::string &text, const ktt::OutputFormat format)
-{
-    switch (format)
-    {
-    case ktt::OutputFormat::JSON_T4:
-        return DeserializeResultJsonT4(text);
-    case ktt::OutputFormat::XML:
-    {
-        pugi::xml_document document;
-        document.load_string(text.c_str());
-        return ParseKernelResult(document.child("KernelResult"));
-    }
-    case ktt::OutputFormat::JSON:
-    default:
-        return DeserializeResultJson(text);
-    }
-}
-
-} // namespace
-
 void ResultRepository::CreateResults(
-    sqlite3 *connection, const size_t runId, const std::vector<KernelResult> &results, const ktt::OutputFormat format,
+    sqlite3 *connection,
+    const size_t runId,
+    const std::vector<KernelResult> &results,
+    const ktt::OutputFormat format,
     const int indentResultsJson
 )
 {
@@ -79,7 +31,7 @@ void ResultRepository::CreateResults(
     {
         if (result.GetStatus() != ResultStatus::Ok)
             continue;
-        const auto serializedResult = SerializeResult(result, format, indentResultsJson);
+        const auto serializedResult = DatabaseUtility::SerializeResult(result, format, indentResultsJson);
 
         sqlite3_bind_int64(resultStmt, 1, static_cast<sqlite3_int64>(runId));
         sqlite3_bind_int64(resultStmt, 2, static_cast<sqlite3_int64>(result.GetKernelDuration()));
@@ -101,7 +53,7 @@ void ResultRepository::CreateResults(
     sqlite3_finalize(resultStmt);
 }
 
-std::vector<KernelResult> ResultRepository::SimpleResultQuery(
+std::vector<KernelResult> ResultRepository::SimpleGetBestResults(
     sqlite3 *connection, size_t spaceId, const Device &device, uint32_t limit
 )
 {
@@ -166,14 +118,14 @@ std::vector<KernelResult> ResultRepository::SimpleResultQuery(
 
         const auto resultText = DatabaseUtility::ReadTextColumn(resultStmt, 0);
         const auto format = static_cast<ktt::OutputFormat>(sqlite3_column_int(resultStmt, 1));
-        results.push_back(DeserializeResult(resultText, format));
+        results.push_back(DatabaseUtility::DeserializeResult(resultText, format));
     }
 
     sqlite3_finalize(resultStmt);
     return results;
 }
 
-std::vector<KernelResult> ResultRepository::ResultsForRunIds(
+std::vector<KernelResult> ResultRepository::ResultsByRunIds(
     sqlite3 *connection, const std::vector<size_t> &runIds, uint32_t limit
 )
 {
@@ -182,9 +134,8 @@ std::vector<KernelResult> ResultRepository::ResultsForRunIds(
 
     std::string resultSql = "SELECT tuning_result.result, tuning_run.output_format_id FROM tuning_result "
                             "JOIN tuning_run ON tuning_run.id = tuning_result.run_id "
-                            "WHERE tuning_result.run_id IN "
-        + DatabaseUtility::SqlList(runIds.size())
-        + " ORDER BY tuning_result.duration ASC LIMIT ?";
+                            "WHERE tuning_result.run_id IN " +
+                            DatabaseUtility::SqlList(runIds.size()) + " ORDER BY tuning_result.duration ASC LIMIT ?";
 
     sqlite3_stmt *resultStmt = DatabaseUtility::PrepareStatement(
         connection,
@@ -217,14 +168,14 @@ std::vector<KernelResult> ResultRepository::ResultsForRunIds(
 
         const auto resultText = DatabaseUtility::ReadTextColumn(resultStmt, 0);
         const auto format = static_cast<ktt::OutputFormat>(sqlite3_column_int(resultStmt, 1));
-        results.push_back(DeserializeResult(resultText, format));
+        results.push_back(DatabaseUtility::DeserializeResult(resultText, format));
     }
 
     sqlite3_finalize(resultStmt);
     return results;
 }
 
-std::vector<RawResult> ResultRepository::GetRawResultsForRun(sqlite3 *connection, const size_t runId)
+std::vector<RawResult> ResultRepository::GetRawResultsByRunId(sqlite3 *connection, const size_t runId)
 {
     const char *resultSql = R"(
         SELECT duration, result

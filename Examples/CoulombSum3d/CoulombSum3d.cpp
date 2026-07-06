@@ -257,40 +257,8 @@ int main(int argc, char** argv)
         preciseParams = ktt::PreciseMeasurementParameters(2000, 20000, 0.005, ktt::DurationCalculationMethod::Minimum);
     }
 
-// #if KTT_DATABASE
-    std::cout << "Loading previous results from database..." << std::endl;
-    const auto db = ktt::db::Database(ktt::OutputFormat::JSON);
-    const auto load = tuner.GetDatabaseTuningInfo(kernel);
-    const auto stats = db.GetStatsForSource(load.spaceInfo.sourceFingerprint);
-    if (stats)
-    {
-        const nlohmann::json statsJson = *stats;
-        std::cout << statsJson.dump(2) << std::endl;
-    }
-    // const auto results = db.SimpleGetBestResults(save);
-    // const ktt::db::GetResultsQuery query{
-    //     save.spaceInfo,
-    //     std::function<bool(const ktt::db::DeviceInfo &)>([](const ktt::db::DeviceInfo &device) {
-    //         return device.computeApi == ktt::ComputeApi::CUDA &&
-    //             device.cudaComputeCapabilityMajor.has_value() &&
-    //             device.cudaComputeCapabilityMinor.has_value() &&
-    //             (device.cudaComputeCapabilityMajor.value() > 10 ||
-    //                 (device.cudaComputeCapabilityMajor.value() == 7 &&
-    //                     device.cudaComputeCapabilityMinor.value() >= 5));
-    //     }),
-    //     std::nullopt, // no input filter
-    //     50
-    // };
-    // const auto results = db.GetBestResults(query);
-// #endif
-
     const auto results = tuner.Tune(kernel, std::make_unique<ktt::FailureFraction>(0.1, 10) /*std::make_unique<ktt::ConfigurationCount>(2)*/, preciseParams);
-    
-// #if KTT_DATABASE
-    auto save = tuner.GetDatabaseTuningInfo(kernel);
-    save.inputData = "atoms=" + std::to_string(atoms) + ";gridSize=" + std::to_string(gridSize);
-    db.SaveResultsForSource(save, results);
-// #endif
+
     
     tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::JSON);
     tuner.SaveResults(results, "CoulombSumOutput_T4", ktt::OutputFormat::JSON_T4);

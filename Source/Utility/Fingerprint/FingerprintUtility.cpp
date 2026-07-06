@@ -1,7 +1,7 @@
 
 #include <set>
 
-#include <Utility/FingerPrint/FingerPrintUtility.h>
+#include <Utility/Fingerprint/FingerprintUtility.h>
 
 namespace ktt
 {
@@ -31,7 +31,7 @@ static std::string ParameterValueToString(const ParameterValue &value)
     return "";
 }
 
-std::size_t FingerPrintUtility::GetFingerprintOfParameters(const std::set<KernelParameter> &params)
+std::size_t FingerprintUtility::GetFingerprintOfParameters(const std::set<KernelParameter> &params)
 {
     std::size_t base = 0;
     std::vector parameters(params.begin(), params.end());
@@ -52,7 +52,7 @@ std::size_t FingerPrintUtility::GetFingerprintOfParameters(const std::set<Kernel
     return base;
 }
 
-std::size_t FingerPrintUtility::GetFingerPrintOfDefinitions(const std::vector<const KernelDefinition *> &definitions)
+std::size_t FingerprintUtility::GetFingerprintOfDefinitions(const std::vector<const KernelDefinition *> &definitions)
 {
     std::size_t base = 0;
     for (const auto *definition : definitions)
@@ -63,7 +63,7 @@ std::size_t FingerPrintUtility::GetFingerPrintOfDefinitions(const std::vector<co
     return base;
 }
 
-std::size_t FingerPrintUtility::HashFunction(std::size_t base, std::size_t value)
+std::size_t FingerprintUtility::HashFunction(std::size_t base, std::size_t value)
 {
     return base ^ (value + 0x9e3779b97f4a7c15 + (base << 6) + (base >> 2));
 }

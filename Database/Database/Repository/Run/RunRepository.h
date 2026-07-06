@@ -6,8 +6,8 @@
 #include <vector>
 
 #include <Api/Info/DatabaseTuningInfo.h>
-#include <Output/OutputFormat.h>
 #include <Database/Utility/Uuid.h>
+#include <Output/OutputFormat.h>
 
 namespace ktt::db
 {
@@ -80,7 +80,12 @@ public:
      * @return Database ID of the newly created run.
      * @throw KttException If insertion fails.
      */
-    static size_t CreateRunWithGuid(sqlite3 *connection, const Run &run, const uuid &guid, const std::string &createdAt);
+    static size_t CreateRunWithGuid(
+        sqlite3 *connection,
+        const Run &run,
+        const uuid &guid,
+        const std::string &createdAt
+    );
 
     /** @fn static bool RunExists(sqlite3 *connection, const uuid &guid)
      * Checks whether a run with the given GUID already exists in the database.
@@ -110,8 +115,11 @@ public:
      * @return Vector of RunQueryResult objects, ordered by run ID.
      * @throw KttException If query fails.
      */
-    static std::vector<RunQueryResult> GetRunsForSpacePaged(
-        sqlite3 *connection, size_t spaceId, size_t offset, size_t limit
+    static std::vector<RunQueryResult> GetRunsBySpaceId(
+        sqlite3 *connection,
+        size_t spaceId,
+        size_t offset,
+        size_t limit
     );
 };
 

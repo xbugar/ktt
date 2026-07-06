@@ -23,7 +23,7 @@ struct TuningInfo;
 struct TuningSpaceInfo;
 
 
-struct GetResultsQuery
+struct GetBestResultsQuery
 {
     const TuningSpaceInfo &source;
     std::optional<std::function<bool(const DeviceInfo &)>> devicePredicate;
@@ -42,6 +42,15 @@ struct SourceStats
     size_t resultCount{}; ///< Total number of kernel results for the source.
 };
 
+/** @struct SaveOption
+ * Options controlling how kernel results are serialized when saved.
+ */
+struct SaveOptions
+{
+    ktt::OutputFormat format{ktt::OutputFormat::JSON}; ///< Output format used to serialize stored results.
+    int indent{2}; ///< Indentation level applied to JSON output (ignored for XML).
+};
+
 /** @class Database
  * Manages storage and retrieval of kernel tuning results in a SQLite database.
  * Provides functionality to save execution results, query best performing configurations,
@@ -51,19 +60,17 @@ class KTT_API Database
 {
 
 public:
-    /** @fn explicit Database(int indentResultsJson = 2)
+    /** @fn Database()
      * Constructs a Database instance with the default database location.
      * The default location is ~/.local/share/ktt/ktt.db. Creates the directory structure if it doesn't exist.
-     * @param indentResultsJson The indentation level for JSON serialization of results. Default is 2 spaces.
      */
-    explicit Database(ktt::OutputFormat format, int indentResultsJson = 2);
+    explicit Database();
 
-    /** @fn Database(std::filesystem::path databasePath, int indentResultsJson = 2)
+    /** @fn Database(std::filesystem::path databasePath)
      * Constructs a Database instance with a custom database file path.
      * @param databasePath The filesystem path where the database should be stored.
-     * @param indentResultsJson The indentation level for JSON serialization of results. Default is 2 spaces.
      */
-    Database(ktt::OutputFormat format, std::filesystem::path databasePath, int indentResultsJson = 2);
+    Database(std::filesystem::path databasePath);
 
     /** @fn ~Database()
      * Destructor that closes the database connection and releases resources.
@@ -74,14 +81,16 @@ public:
     Database(const Database &) = delete;
     Database &operator=(const Database &) = delete;
 
-    /** @fn void SaveResultsForSource(const TuningInfo &source, std::vector<KernelResult> results) const
+    /** @fn void SaveResults(const TuningInfo &source, std::vector<KernelResult> results, SaveOption option) const
      * Saves kernel execution results for a specific tuning source and configuration.
      * Stores results in the database, organizing them by source fingerprint, tuning space, device,
      * and run information. Creates new records in the database schema if they don't exist.
      * @param source The TuningInfo containing source fingerprint, space info, device info, and input data.
      * @param results Vector of KernelResult objects containing execution data to be stored.
+     * @param option Output format and JSON indentation used to serialize the results.
+     *               Defaults to JSON with an indentation of 2.
      */
-    void SaveResultsForSource(const TuningInfo &source, std::vector<KernelResult> results) const;
+    void SaveResults(const TuningInfo &source, std::vector<KernelResult> results, SaveOptions options = {}) const;
 
     /** @fn std::vector<KernelResult> GetBestResultsForSource(const TuningInfo &source, uint32_t limit = 50) const
      * Retrieves the best (fastest) kernel results for a given tuning source and configuration.
@@ -90,7 +99,7 @@ public:
      * @param limit Maximum number of results to return. Default is 50.
      * @return Vector of KernelResult objects sorted by execution time (fastest first).
      */
-    std::vector<KernelResult> SimpleGetBestResultsForSource(const TuningInfo &source, uint32_t limit = 50) const;
+    std::vector<KernelResult> SimpleGetBestResults(const TuningInfo &source, uint32_t limit = 50) const;
 
     /** @fn std::vector<KernelResult> GetBestResultsQuery(const GetResultsQuery &query) const
      * Retrieves the best kernel results using advanced query filters and predicates.
@@ -100,7 +109,7 @@ public:
      *              and a result limit.
      * @return Vector of KernelResult objects sorted by execution time, limited to the specified count.
      */
-    std::vector<KernelResult> GetBestResults(const GetResultsQuery &query) const;
+    std::vector<KernelResult> GetBestResults(const GetBestResultsQuery &query) const;
 
     /** @fn std::optional<SourceStats> GetStatsForSource(size_t sourceFingerprint) const
      * Retrieves statistical information for a given tuning source.
@@ -139,7 +148,5 @@ private:
 
     std::filesystem::path DatabasePath;
     mutable sqlite3 *Connection;
-    int IndentResultsJson;
-    ktt::OutputFormat OutputFormat;
 };
 } // namespace ktt::db

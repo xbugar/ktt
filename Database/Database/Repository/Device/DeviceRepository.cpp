@@ -202,7 +202,7 @@ DeviceApi DeviceApi::FromRow(sqlite3_stmt *stmt)
 }
 
 
-std::optional<DeviceApi> DeviceRepository::GetDeviceApiForSimpleQuery(sqlite3 *connection, const DeviceApi &deviceApi)
+std::optional<DeviceApi> DeviceRepository::GetDeviceApiBySimpleQuery(sqlite3 *connection, const DeviceApi &deviceApi)
 {
     const char *deviceApiSql = R"(
         SELECT id, compute_api_id, version_major, version_minor, extensions

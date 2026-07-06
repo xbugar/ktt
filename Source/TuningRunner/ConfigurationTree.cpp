@@ -4,7 +4,7 @@
 #include <Api/KttException.h>
 #include <TuningRunner/ConfigurationTree.h>
 #include <Utility/ErrorHandling/Assert.h>
-#include <Utility/FingerPrint/FingerPrintUtility.h>
+#include <Utility/Fingerprint/FingerprintUtility.h>
 
 namespace ktt
 {
@@ -128,13 +128,13 @@ size_t ConfigurationTree::GetConfigurationFingerprint() const
         stack.pop();
 
         // Hash the node's level
-        result = FingerPrintUtility::HashFunction(result, level);
+        result = FingerprintUtility::HashFunction(result, level);
 
         // Hash the node's index (parameter value index)
-        result = FingerPrintUtility::HashFunction(result, node->GetIndex());
+        result = FingerprintUtility::HashFunction(result, node->GetIndex());
 
         // Hash the number of children
-        result = FingerPrintUtility::HashFunction(result, node->GetChildrenCount());
+        result = FingerprintUtility::HashFunction(result, node->GetChildrenCount());
 
         if (level > 0)
         {
@@ -144,7 +144,7 @@ size_t ConfigurationTree::GetConfigurationFingerprint() const
             KttAssert(node->GetIndex() < parameter->GetValuesCount(), "Invalid node index for parameter values");
 
             const std::string value = parameter->GeneratePair(node->GetIndex()).GetValueString();
-            result = FingerPrintUtility::HashFunction(result, std::hash<std::string>{}(value));
+            result = FingerprintUtility::HashFunction(result, std::hash<std::string>{}(value));
         }
 
         // Add all children to the stack in reverse order

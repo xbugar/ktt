@@ -1,4 +1,4 @@
-#include <Database/Repository/Result/ResultSerialization.h>
+#include <Database/Utility/ResultSerializationJsonT4.h>
 
 #include <json.hpp>
 

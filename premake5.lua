@@ -751,6 +751,14 @@ project "CoulombSum3dCuda"
     files {"Examples/CoulombSum3d/*.cpp", "Examples/CoulombSum3d/*.cu"}
     includedirs {"Source"}
     defines {"KTT_CUDA_EXAMPLE"}
+    links {"ktt"}
+    enableOpenMP()
+
+project "CoulombSum3dDatabaseCuda"
+    kind "ConsoleApp"
+    files {"Examples/CoulombSum3dDatabase/*.cpp", "Examples/CoulombSum3dDatabase/*.cu"}
+    includedirs {"Source"}
+    defines {"KTT_CUDA_EXAMPLE"}
     if _OPTIONS["database"] then
         defines {"KTT_DATABASE"}
         includedirs {"Database", "Libraries/Json-3.9.1"}

@@ -21,7 +21,7 @@
 #include <Utility/ErrorHandling/Assert.h>
 #include <Utility/FileSystem.h>
 #include <Utility/Logger/Logger.h>
-#include <Utility/FingerPrint/FingerPrintUtility.h>
+#include <Utility/Fingerprint/FingerprintUtility.h>
 
 namespace ktt
 {
@@ -386,8 +386,8 @@ ktt::db::TuningInfo TunerCore::GetDatabaseTuningInfo(const KernelId id) const
         ktt::db::TuningSpaceInfo spaceInfo;
         {
             spaceInfo.spaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
-            spaceInfo.parameterFingerprint = FingerPrintUtility::GetFingerprintOfParameters(parameters);
-            spaceInfo.sourceFingerprint = FingerPrintUtility::GetFingerPrintOfDefinitions(sources);
+            spaceInfo.parameterFingerprint = FingerprintUtility::GetFingerprintOfParameters(parameters);
+            spaceInfo.sourceFingerprint = FingerprintUtility::GetFingerprintOfDefinitions(sources);
         }
         s.spaceInfo = spaceInfo;
 

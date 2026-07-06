@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include <Output/OutputFormat.h>
 #include <Database/Repository/Device/DeviceRepository.h>
+#include <Output/OutputFormat.h>
 
 namespace ktt::db
 {
@@ -39,11 +39,14 @@ public:
      * @throw KttException If insertion fails.
      */
     static void CreateResults(
-        sqlite3 *connection, size_t runId, const std::vector<KernelResult> &results, ktt::OutputFormat format,
+        sqlite3 *connection,
+        size_t runId,
+        const std::vector<KernelResult> &results,
+        ktt::OutputFormat format,
         int indentResultsJson
     );
 
-    /** @fn static std::vector<KernelResult> SimpleResultQuery(sqlite3 *connection, size_t spaceId, const Device
+    /** @fn static std::vector<KernelResult> SimpleGetBestResults(sqlite3 *connection, size_t spaceId, const Device
      * &device, uint32_t limit = 50) Retrieves the best kernel results for a space and device combination. Results are
      * ordered by duration (fastest first). Supports device matching by exact name/vendor/type or by compute API and
      * version.
@@ -54,11 +57,11 @@ public:
      * @return Vector of KernelResult objects sorted by execution time.
      * @throw KttException If query fails.
      */
-    static std::vector<KernelResult> SimpleResultQuery(
+    static std::vector<KernelResult> SimpleGetBestResults(
         sqlite3 *connection, size_t spaceId, const Device &device, uint32_t limit
     );
 
-    /** @fn static std::vector<KernelResult> ResultsForRunIds(sqlite3 *connection, const std::vector<size_t> &runIds,
+    /** @fn static std::vector<KernelResult> ResultsByRunIds(sqlite3 *connection, const std::vector<size_t> &runIds,
      * uint32_t limit) Retrieves kernel results for a list of run IDs.
      * @param connection SQLite database connection.
      * @param runIds Vector of run IDs to retrieve results for.
@@ -66,7 +69,7 @@ public:
      * @return Vector of KernelResult objects sorted by execution time.
      * @throw KttException If query fails or runIds is empty.
      */
-    static std::vector<KernelResult> ResultsForRunIds(
+    static std::vector<KernelResult> ResultsByRunIds(
         sqlite3 *connection, const std::vector<size_t> &runIds, uint32_t limit
     );
 
@@ -78,7 +81,7 @@ public:
      * @return Vector of RawResult objects in their stored order.
      * @throw KttException If the query fails.
      */
-    static std::vector<RawResult> GetRawResultsForRun(sqlite3 *connection, size_t runId);
+    static std::vector<RawResult> GetRawResultsByRunId(sqlite3 *connection, size_t runId);
 
     /** @fn static void InsertRawResults(sqlite3 *connection, size_t runId, const std::vector<RawResult> &results)
      * Inserts already-serialized results for a run, copying them verbatim.

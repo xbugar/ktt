@@ -257,101 +257,49 @@ int main(int argc, char** argv)
         preciseParams = ktt::PreciseMeasurementParameters(2000, 20000, 0.005, ktt::DurationCalculationMethod::Minimum);
     }
 
+
+    /**
+     * Database integration example
+     * The following code demonstrates how to load previous results from the database and save new results after tuning.
+     * It is wrapped in a preprocessor directive to ensure it only compiles when database support is enabled (KTT_DATABASE).
+     * The database is queried for previous results based on the tuning information of the kernel, and the best results are retrieved and printed.
+     * After tuning, the new results are saved back to the database with additional input data information.
+     */
 #if KTT_DATABASE
-    std::cout << "Loading previous results from database..." << std::endl;
-    const auto db = ktt::db::Database(ktt::OutputFormat::JSON);
-    const auto load = tuner.GetDatabaseTuningInfo(kernel);
-    const auto stats = db.GetStatsForSource(load.spaceInfo.sourceFingerprint);
-    if (stats)
-    {
-        const nlohmann::json statsJson = *stats;
-        std::cout << statsJson.dump(2) << std::endl;
-    }
-    const auto results = db.SimpleGetBestResults(save);
-    const ktt::db::GetResultsQuery query{
-        save.spaceInfo,
-        std::function<bool(const ktt::db::DeviceInfo &)>([](const ktt::db::DeviceInfo &device) {
-            return device.computeApi == ktt::ComputeApi::CUDA &&
-                device.cudaComputeCapabilityMajor.has_value() &&
-                device.cudaComputeCapabilityMinor.has_value() &&
-                (device.cudaComputeCapabilityMajor.value() > 10 ||
-                    (device.cudaComputeCapabilityMajor.value() == 7 &&
-                        device.cudaComputeCapabilityMinor.value() >= 5));
-        }),
-        std::nullopt, // no input filter
-        50
-    };
-    const auto results = db.GetBestResults(query);
+    // std::cout << "Loading previous results from database..." << std::endl;
+    const auto db = ktt::db::Database();
+    // const auto tuningInfo = tuner.GetDatabaseTuningInfo(kernel);
+    // const auto stats = db.GetStatsForSource(tuningInfo.spaceInfo.sourceFingerprint);
+    // if (stats)
+    // {
+    //     const nlohmann::json statsJson = *stats;
+    //     std::cout << statsJson.dump(2) << std::endl;
+    // }
+    // const auto results = db.SimpleGetBestResults(tuningInfo, 50);
+    // const ktt::db::GetBestResultsQuery query{
+    //     tuningInfo.spaceInfo,
+    //     std::function<bool(const ktt::db::DeviceInfo &)>([](const ktt::db::DeviceInfo &device) {
+    //         return device.computeApi == ktt::ComputeApi::CUDA &&
+    //             device.cudaComputeCapabilityMajor.has_value() &&
+    //             device.cudaComputeCapabilityMinor.has_value() &&
+    //             (device.cudaComputeCapabilityMajor.value() > 10 ||
+    //                 (device.cudaComputeCapabilityMajor.value() == 7 &&
+    //                     device.cudaComputeCapabilityMinor.value() >= 5));
+    //     }),
+    //     std::nullopt, // no input filter
+    //     50
+    // };
+    // const auto results = db.GetBestResults(query);
 #endif
 
     const auto results = tuner.Tune(kernel, std::make_unique<ktt::FailureFraction>(0.1, 10) /*std::make_unique<ktt::ConfigurationCount>(2)*/, preciseParams);
     
-// #if KTT_DATABASE
+#if KTT_DATABASE
     auto save = tuner.GetDatabaseTuningInfo(kernel);
     save.inputData = "atoms=" + std::to_string(atoms) + ";gridSize=" + std::to_string(gridSize);
-    db.SaveResultsForSource(save, results);
-// #endif
-    
-    tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::JSON);
-    tuner.SaveResults(results, "CoulombSumOutput_T4", ktt::OutputFormat::JSON_T4);
-    tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::XML);
-
-    double bestDuration = std::numeric_limits<double>::max();
-    std::string bestConfig;
-    const ktt::KernelResult* bestResult = nullptr;
-    for (const auto& result : results)
-    {
-        double duration = result.GetTotalDuration();
-        std::string config = result.GetConfiguration().GetString();
-
-        std::cout << "Configuration: " << config
-                  << " -> Duration: " << duration << " ns"
-                  << " -> Status: " << (result.GetStatus() == ktt::ResultStatus::Ok ? "OK" : "FAILED")
-                  << std::endl;
-
-        if (result.GetStatus() == ktt::ResultStatus::Ok && duration < bestDuration)
-        {
-            bestDuration = duration;
-            bestConfig = config;
-            bestResult = &result;
-        }
-    }
-
-    if (!results.empty())
-    {
-        std::cout << "\nBest configuration: " << bestConfig << " with duration " << bestDuration << " ns (" << 1000.0*(double)atoms*(double)gridSize*(double)gridSize*(double)gridSize/bestDuration << "mevals/s)" << std::endl;
-    }
-
-    if (separateCompilerTuning && bestResult != nullptr)
-    {
-        std::cout << "\nTuning compiler options on top of best kernel configuration..." << std::endl;
-        const auto optResults = tuner.TuneOptions(kernel, bestResult->GetConfiguration());
-        tuner.SaveResults(optResults, "CoulombSumOptionsOutput", ktt::OutputFormat::JSON);
-
-        double bestOptDuration = std::numeric_limits<double>::max();
-        std::string bestOptConfig;
-        for (const auto& optResult : optResults)
-        {
-            double duration = optResult.GetTotalDuration();
-            std::string config = optResult.GetConfiguration().GetString();
-
-            std::cout << "Options configuration: " << config
-                      << " -> Duration: " << duration << " ns"
-                      << " -> Status: " << (optResult.GetStatus() == ktt::ResultStatus::Ok ? "OK" : "FAILED")
-                      << std::endl;
-
-            if (optResult.GetStatus() == ktt::ResultStatus::Ok && duration < bestOptDuration)
-            {
-                bestOptDuration = duration;
-                bestOptConfig = config;
-            }
-        }
-
-        if (!optResults.empty())
-        {
-            std::cout << "\nBest options configuration: " << bestOptConfig << " with duration " << bestOptDuration << " ns" << std::endl;
-        }
-    }
-
+    db.SaveResults(save, results, {ktt::OutputFormat::JSON, 2});
+    db.SaveResults(save, results, {ktt::OutputFormat::JSON_T4, 2});
+    db.SaveResults(save, results, {ktt::OutputFormat::XML, 2});
+#endif
     return 0;
 }

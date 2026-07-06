@@ -10,7 +10,7 @@
 #include <Utility/Logger/Logger.h>
 #include <Utility/StlHelpers.h>
 #include <Utility/Timer/Timer.h>
-#include <Utility/FingerPrint/FingerPrintUtility.h>
+#include <Utility/Fingerprint/FingerprintUtility.h>
 
 namespace ktt
 {
@@ -237,7 +237,7 @@ size_t ConfigurationData::GetConfigurationFingerprint() const
 
     for (const auto& forest : m_Forests)
     {
-        result = FingerPrintUtility::HashFunction(result, forest->GetConfigurationFingerprint());
+        result = FingerprintUtility::HashFunction(result, forest->GetConfigurationFingerprint());
     }
 
     return result;

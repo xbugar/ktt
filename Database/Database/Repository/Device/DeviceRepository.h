@@ -125,7 +125,7 @@ public:
      * @return Optional DeviceApi if found, std::nullopt otherwise.
      * @throw KttException If query fails.
      */
-    static std::optional<DeviceApi> GetDeviceApiForSimpleQuery(sqlite3 *connection, const DeviceApi &deviceApi);
+    static std::optional<DeviceApi> GetDeviceApiBySimpleQuery(sqlite3 *connection, const DeviceApi &deviceApi);
 };
 
 } // namespace ktt::db
