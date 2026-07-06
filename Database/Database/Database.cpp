@@ -10,6 +10,7 @@
 #include <Database/Repository/Run/RunRepository.h>
 #include <Database/Repository/Source/SourceRepository.h>
 #include <Database/Repository/Space/SpaceRepository.h>
+#include <Database/Utility/TransactionGuard.h>
 #include <Database/Schema/Schema.h>
 #include <Output/OutputFormat.h>
 #include <Utility/Logger/Logger.h>
@@ -68,43 +69,53 @@ void Database::CloseDatabase() const
 
 void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResult> results, SaveOptions option) const
 {
-    const auto source = SourceRepository::GetOrCreateSource(
-        Connection,
-        {std::nullopt, tuningInfo.spaceInfo.sourceFingerprint}
-    );
+    try
+    {
+        TransactionGuard transaction(Connection);
+        
+        const auto source = SourceRepository::GetOrCreateSource(
+            Connection,
+            {std::nullopt, tuningInfo.spaceInfo.sourceFingerprint}
+        );
 
-    const auto space = SpaceRepository::GetOrCreateSpace(
-        Connection,
-        {std::nullopt, // space Id
-         *source.id,
-         tuningInfo.spaceInfo.parameterFingerprint,
-         tuningInfo.spaceInfo.spaceFingerprint}
-    );
+        const auto space = SpaceRepository::GetOrCreateSpace(
+            Connection,
+            {std::nullopt, // space Id
+            *source.id,
+            tuningInfo.spaceInfo.parameterFingerprint,
+            tuningInfo.spaceInfo.spaceFingerprint}
+        );
 
-    const auto device = DeviceRepository::GetOrCreateDevice(
-        Connection,
-        {std::nullopt, // device Id
-         std::nullopt, // api Id
-         tuningInfo.device.name,
-         tuningInfo.device.vendor,
-         tuningInfo.device.type,
-         tuningInfo.device.computeApi,
-         tuningInfo.device.extensions,
-         tuningInfo.device.cudaComputeCapabilityMajor,
-         tuningInfo.device.cudaComputeCapabilityMinor}
-    );
+        const auto device = DeviceRepository::GetOrCreateDevice(
+            Connection,
+            {std::nullopt, // device Id
+            std::nullopt, // api Id
+            tuningInfo.device.name,
+            tuningInfo.device.vendor,
+            tuningInfo.device.type,
+            tuningInfo.device.computeApi,
+            tuningInfo.device.extensions,
+            tuningInfo.device.cudaComputeCapabilityMajor,
+            tuningInfo.device.cudaComputeCapabilityMinor}
+        );
 
-    const size_t runId = RunRepository::CreateRun(
-        Connection,
-        {std::nullopt, // run Id
-         *space.id,
-         *device.id,
-         *device.apiId,
-         option.format,
-         tuningInfo.inputData}
-    );
+        const size_t runId = RunRepository::CreateRun(
+            Connection,
+            {std::nullopt, // run Id
+            *space.id,
+            *device.id,
+            *device.apiId,
+            option.format,
+            tuningInfo.inputData}
+        );
 
-    ResultRepository::CreateResults(Connection, runId, results, option.format, option.indent);
+        ResultRepository::CreateResults(Connection, runId, results, option.format, option.indent);
+        transaction.Commit();
+    }
+    catch (...)
+    {
+        throw;
+    }
 }
 
 std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo &t, uint32_t limit) const
@@ -246,6 +257,8 @@ size_t Database::SyncFromFile(const std::filesystem::path &sourceDatabase) const
     size_t inserted = 0;
     try
     {
+        TransactionGuard transaction(Connection);
+
         const auto records = RunRepository::GetAllRuns(source);
 
         for (const auto &record : records)
@@ -293,6 +306,8 @@ size_t Database::SyncFromFile(const std::filesystem::path &sourceDatabase) const
 
             ++inserted;
         }
+
+        transaction.Commit();
 
         ktt::Logger::LogInfo(
             "Database sync: " + std::to_string(inserted) + " new run(s) copied, " +

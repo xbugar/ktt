@@ -265,9 +265,9 @@ int main(int argc, char** argv)
      * The database is queried for previous results based on the tuning information of the kernel, and the best results are retrieved and printed.
      * After tuning, the new results are saved back to the database with additional input data information.
      */
-#if KTT_DATABASE
     // std::cout << "Loading previous results from database..." << std::endl;
     const auto db = ktt::db::Database();
+    db.SyncFromFile("/home/xbugar/.local/share/ktt/ktt2.db");
     // const auto tuningInfo = tuner.GetDatabaseTuningInfo(kernel);
     // const auto stats = db.GetStatsForSource(tuningInfo.spaceInfo.sourceFingerprint);
     // if (stats)
@@ -279,27 +279,24 @@ int main(int argc, char** argv)
     // const ktt::db::GetBestResultsQuery query{
     //     tuningInfo.spaceInfo,
     //     std::function<bool(const ktt::db::DeviceInfo &)>([](const ktt::db::DeviceInfo &device) {
-    //         return device.computeApi == ktt::ComputeApi::CUDA &&
-    //             device.cudaComputeCapabilityMajor.has_value() &&
-    //             device.cudaComputeCapabilityMinor.has_value() &&
-    //             (device.cudaComputeCapabilityMajor.value() > 10 ||
-    //                 (device.cudaComputeCapabilityMajor.value() == 7 &&
-    //                     device.cudaComputeCapabilityMinor.value() >= 5));
+    //         return device.computeApi == ktt::ComputeApi::CUDA;
     //     }),
     //     std::nullopt, // no input filter
     //     50
     // };
     // const auto results = db.GetBestResults(query);
-#endif
 
-    const auto results = tuner.Tune(kernel, std::make_unique<ktt::FailureFraction>(0.1, 10) /*std::make_unique<ktt::ConfigurationCount>(2)*/, preciseParams);
+    // const auto results = tuner.Tune(kernel, std::make_unique<ktt::FailureFraction>(0.1, 10) /*std::make_unique<ktt::ConfigurationCount>(2)*/, preciseParams);
     
-#if KTT_DATABASE
-    auto save = tuner.GetDatabaseTuningInfo(kernel);
-    save.inputData = "atoms=" + std::to_string(atoms) + ";gridSize=" + std::to_string(gridSize);
-    db.SaveResults(save, results, {ktt::OutputFormat::JSON, 2});
-    db.SaveResults(save, results, {ktt::OutputFormat::JSON_T4, 2});
-    db.SaveResults(save, results, {ktt::OutputFormat::XML, 2});
-#endif
+    // tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::JSON);
+
+    /**
+     * Database integration example - Save
+     */
+    // auto save = tuner.GetDatabaseTuningInfo(kernel);
+    // save.inputData = "atoms=" + std::to_string(atoms) + ";gridSize=" + std::to_string(gridSize);
+    // db.SaveResults(save, results, {ktt::OutputFormat::JSON, 2});
+    // db.SaveResults(save, results, {ktt::OutputFormat::JSON_T4, 2});
+    // db.SaveResults(save, results, {ktt::OutputFormat::XML, 2});
     return 0;
 }

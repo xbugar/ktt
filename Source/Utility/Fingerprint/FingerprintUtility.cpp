@@ -6,31 +6,6 @@
 namespace ktt
 {
 
-static std::string ParameterValueToString(const ParameterValue &value)
-{
-    if (std::holds_alternative<int64_t>(value))
-    {
-        return std::to_string(std::get<int64_t>(value));
-    }
-    if (std::holds_alternative<uint64_t>(value))
-    {
-        return std::to_string(std::get<uint64_t>(value));
-    }
-    if (std::holds_alternative<double>(value))
-    {
-        return std::to_string(std::get<double>(value));
-    }
-    if (std::holds_alternative<bool>(value))
-    {
-        return std::get<bool>(value) ? "true" : "false";
-    }
-    if (std::holds_alternative<std::string>(value))
-    {
-        return std::get<std::string>(value);
-    }
-    return "";
-}
-
 std::size_t FingerprintUtility::GetFingerprintOfParameters(const std::set<KernelParameter> &params)
 {
     std::size_t base = 0;
