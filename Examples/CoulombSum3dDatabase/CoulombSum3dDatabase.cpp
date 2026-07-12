@@ -258,44 +258,49 @@ int main(int argc, char** argv)
     }
 
     /**
-     * Database integration example
-     * The following code demonstrates how to load previous results from the database and save new results after tuning.
-     * It is wrapped in a preprocessor directive to ensure it only compiles when database support is enabled (KTT_DATABASE).
-     * The database is queried for previous results based on the tuning information of the kernel, and the best results are retrieved and printed.
-     * After tuning, the new results are saved back to the database with additional input data information.
+     * Database integration example - Prep
      */
-    // std::cout << "Loading previous results from database..." << std::endl;
     const auto db = ktt::db::Database();
     db.SyncFromFile("/home/xbugar/.local/share/ktt/ktt2.db");
-    // const auto tuningInfo = tuner.GetDatabaseTuningInfo(kernel);
-    // const auto stats = db.GetStatsForSource(tuningInfo.spaceInfo.sourceFingerprint);
-    // if (stats)
-    // {
-    //     const nlohmann::json statsJson = *stats;
-    //     std::cout << statsJson.dump(2) << std::endl;
-    // }
-    // const auto results = db.SimpleGetBestResults(tuningInfo, 50);
-    // const ktt::db::GetBestResultsQuery query{
-    //     tuningInfo.spaceInfo,
-    //     std::function<bool(const ktt::db::DeviceInfo &)>([](const ktt::db::DeviceInfo &device) {
-    //         return device.computeApi == ktt::ComputeApi::CUDA;
-    //     }),
-    //     std::nullopt, // no input filter
-    //     50
-    // };
-    // const auto results = db.GetBestResults(query);
+    const auto tuningInfo = tuner.GetDatabaseTuningInfo(kernel);
+
+    /**
+     * Database integration example - load Simple
+     */
+    const auto simpleResults = db.SimpleGetBestResults(tuningInfo, 50);
+    
+    
+    /**
+     * Database integration example - load Query
+     */
+    const ktt::db::GetBestResultsQuery query{
+        tuningInfo.spaceInfo,
+        std::function<bool(const ktt::db::DeviceInfo &)>([](const ktt::db::DeviceInfo &device) {
+            return device.computeApi == ktt::ComputeApi::CUDA;
+        }),
+        std::nullopt, // no input filter
+        50
+    };
+    const auto queryResults = db.GetBestResults(query);
+
+    /**
+     * Database integration example - run the best configuration
+     */
+    if (!simpleResults.empty())
+    {
+        const auto bestConfig = simpleResults[0].GetConfiguration();
+        const auto bestResult = tuner.Run(kernel, bestConfig, {});
+    }
 
     const auto results = tuner.Tune(kernel, std::make_unique<ktt::FailureFraction>(0.1, 10) /*std::make_unique<ktt::ConfigurationCount>(2)*/, preciseParams);
-    
-    // tuner.SaveResults(results, "CoulombSumOutput", ktt::OutputFormat::JSON);
 
     /**
      * Database integration example - Save
      */
     auto save = tuner.GetDatabaseTuningInfo(kernel);
-    // save.inputData = "atoms=" + std::to_string(atoms) + ";gridSize=" + std::to_string(gridSize);
-    // db.SaveResults(save, results, {ktt::OutputFormat::JSON, 2});
+    save.inputData = "atoms=" + std::to_string(atoms) + ";gridSize=" + std::to_string(gridSize);
+    db.SaveResults(save, results, {ktt::OutputFormat::JSON, 2});
     // db.SaveResults(save, results, {ktt::OutputFormat::JSON_T4, 2});
-    db.SaveResults(save, results, {ktt::OutputFormat::XML, 2});
+    // db.SaveResults(save, results, {ktt::OutputFormat::XML, 2});
     return 0;
 }

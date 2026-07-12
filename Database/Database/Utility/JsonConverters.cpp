@@ -1,5 +1,4 @@
 #include <Database/Database.h>
-
 #include <Database/Utility/JsonConverters.h>
 
 namespace ktt::db

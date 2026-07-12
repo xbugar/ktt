@@ -12,6 +12,7 @@
 #include <Database/Repository/Space/SpaceRepository.h>
 #include <Database/Schema/Schema.h>
 #include <Database/Utility/TransactionGuard.h>
+#include <Database/Utility/TuningInfoValidation.h>
 #include <Output/OutputFormat.h>
 #include <Utility/Logger/Logger.h>
 
@@ -82,6 +83,8 @@ void Database::CloseDatabase() const
 
 void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResult> results, SaveOptions option) const
 {
+    ValidateTuningInfo(tuningInfo);
+
     try
     {
         TransactionGuard transaction(m_Connection);
@@ -132,6 +135,8 @@ void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResul
 
 std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo &t, uint32_t limit) const
 {
+    ValidateTuningInfo(t);
+
     const auto source = SourceRepository::GetSource(m_Connection, t.spaceInfo.sourceFingerprint);
     if (source == std::nullopt)
     {

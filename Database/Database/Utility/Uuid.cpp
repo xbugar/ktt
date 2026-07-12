@@ -1,7 +1,7 @@
-#include <Database/Utility/Uuid.h>
-
 #include <cstdint>
 #include <random>
+
+#include <Database/Utility/Uuid.h>
 
 namespace ktt::db
 {

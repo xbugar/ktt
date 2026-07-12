@@ -1,5 +1,3 @@
-#include "DeviceRepository.h"
-
 #include <sqlite3.h>
 
 #include <Api/KttException.h>

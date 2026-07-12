@@ -1,8 +1,7 @@
-#include <Database/Utility/TransactionGuard.h>
-
 #include <string>
 
 #include <Api/KttException.h>
+#include <Database/Utility/TransactionGuard.h>
 
 namespace ktt::db
 {
