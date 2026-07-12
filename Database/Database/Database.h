@@ -7,7 +7,6 @@
 
 #include <Api/Info/DatabaseTuningInfo.h>
 #include <Api/Output/KernelResult.h>
-#include <Database/Utility/JsonConverters.h>
 #include <Output/OutputFormat.h>
 
 struct sqlite3;

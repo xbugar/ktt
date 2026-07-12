@@ -381,8 +381,14 @@ newoption
     description = "Disables compilation of tutorials"
 }
 
+newoption
+{
+    trigger = "database",
+    description = "Enables compilation of database integration"
+}
+
 -- Helper function to add example projects
-function addExampleProject(name, kernelExt, apiDefine, useRefVersions, shouldEnableOpenMP)
+function addExampleProject(name, kernelExt, apiDefine, useRefVersions, shouldEnableOpenMP, isDatabase)
     local projectName = name .. (useRefVersions and "Reference" or "") .. kernelExt
 
     local cppFiles
@@ -398,6 +404,11 @@ function addExampleProject(name, kernelExt, apiDefine, useRefVersions, shouldEna
         includedirs {"Source"}
         defines {apiDefine}
         links {"ktt"}
+        if isDatabase then
+            -- Ktt.h pulls in <Database/Database.h> under KTT_DATABASE
+            includedirs {"Database"}
+            defines {"KTT_DATABASE"}
+        end
         if shouldEnableOpenMP then
             enableOpenMP()
         end
@@ -425,6 +436,19 @@ function addCppExample(name, enableOpenMP, noReference)
     if _OPTIONS["reference-versions"] and not noReference then
         addExampleProject(name, "Cpp", "KTT_CPP_EXAMPLE", true, enableOpenMP)
     end
+end
+
+-- Helper functions to add database examples (require --database, no reference versions)
+function addDatabaseOpenClExample(name, enableOpenMP)
+    addExampleProject(name, "OpenCl", "KTT_OPENCL_EXAMPLE", false, enableOpenMP, true)
+end
+
+function addDatabaseCudaExample(name, enableOpenMP)
+    addExampleProject(name, "Cuda", "KTT_CUDA_EXAMPLE", false, enableOpenMP, true)
+end
+
+function addDatabaseCppExample(name, enableOpenMP)
+    addExampleProject(name, "Cpp", "KTT_CPP_EXAMPLE", false, enableOpenMP, true)
 end
 
 -- Base example list (examples available for both OpenCL and CUDA)
@@ -464,6 +488,16 @@ cudaOnlyExamples = {
 -- C++ examples
 cppExamples = {
     {"CoulombSum3d", true}   -- requires OpenMP
+}
+
+-- Database examples (require --database; base list covers OpenCL and CUDA)
+databaseBaseExamples = {
+    {"CoulombSum3dDatabase", true}   -- requires OpenMP
+}
+
+-- Database C++ examples (require --database)
+databaseCppExamples = {
+    {"CoulombSum3dDatabase", true}   -- requires OpenMP
 }
 
 -- Project configuration
@@ -523,6 +557,14 @@ project "Ktt"
         "Libraries/Json-3.9.1",
         "Libraries/pugixml-1.11.4"
     }
+
+    if _OPTIONS["database"] then
+        files {"Database/**"}
+        includedirs {"Database"}
+        defines {"KTT_DATABASE"}
+        links {"sqlite3"}
+    end
+    
     
     if _OPTIONS["python"] then
         if os.target() == "linux" then
@@ -695,6 +737,12 @@ if openClProjects then
         addOpenClExample(ex[1], ex[2], ex[3])
     end
 
+    if _OPTIONS["database"] then
+        for _, ex in ipairs(databaseBaseExamples) do
+            addDatabaseOpenClExample(ex[1], ex[2])
+        end
+    end
+
 end -- openClProjects
     
 if cudaProjects then
@@ -707,12 +755,24 @@ if cudaProjects then
         addCudaExample(ex[1], ex[2], ex[3])
     end
 
+    if _OPTIONS["database"] then
+        for _, ex in ipairs(databaseBaseExamples) do
+            addDatabaseCudaExample(ex[1], ex[2])
+        end
+    end
+
 end -- cudaProjects
 
 if cppProjects then
 
     for _, ex in ipairs(cppExamples) do
         addCppExample(ex[1], ex[2], ex[3])
+    end
+
+    if _OPTIONS["database"] then
+        for _, ex in ipairs(databaseCppExamples) do
+            addDatabaseCppExample(ex[1], ex[2])
+        end
     end
 
 end -- cppProjects
