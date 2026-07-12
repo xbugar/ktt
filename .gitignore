@@ -6,4 +6,5 @@ CMakeLists.txt
 premake5.exe
 premake5
 *.swp
-.clang-format
+.cache
+compile_commands.json
