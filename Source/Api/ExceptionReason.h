@@ -23,7 +23,7 @@ enum class ExceptionReason
       */
     DeviceLimitsExceeded,
 
-    /** General database error. For more info contact KTT developers (xbugar).
+    /** General database error.
       */
     Database
 };

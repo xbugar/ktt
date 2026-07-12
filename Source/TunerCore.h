@@ -113,12 +113,7 @@ public:
     static void SetTimeUnit(const TimeUnit unit);
     void SaveResults(const std::vector<KernelResult>& results, const std::string& filePath, const OutputFormat format,
         const UserData& data) const;
-
-    void SaveResultsToDatabase(const std::vector<KernelResult> &results, KernelDefinitionId sourceId) const;
-
     std::vector<KernelResult> LoadResults(const std::string& filePath, const OutputFormat format, UserData& data) const;
-
-    std::vector<KernelResult> LoadResultsFromDatabase(const KernelId id, const int limit = 5) const;
 
     // Compute engine
     QueueId AddComputeQueue(ComputeQueue queue);

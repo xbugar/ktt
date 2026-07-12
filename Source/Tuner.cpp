@@ -824,6 +824,7 @@ std::vector<KernelResult> Tuner::LoadResults(const std::string& filePath, const 
         return std::vector<KernelResult>{};
     }
 }
+
 QueueId Tuner::AddComputeQueue(ComputeQueue queue)
 {
     try

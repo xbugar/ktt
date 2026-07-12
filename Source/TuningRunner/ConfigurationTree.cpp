@@ -106,8 +106,7 @@ size_t ConfigurationTree::GetConfigurationFingerprint() const
 
     size_t result = 0;
 
-    // Use a stack to traverse the tree non-recursively
-    // Each stack entry contains: (node pointer, level)
+    // Each stack entry contains: (node, level)
     std::stack<std::pair<const ConfigurationNode*, uint64_t>> stack;
 
     if (m_Root)
@@ -127,13 +126,8 @@ size_t ConfigurationTree::GetConfigurationFingerprint() const
         auto [node, level] = stack.top();
         stack.pop();
 
-        // Hash the node's level
         result = FingerprintUtility::HashFunction(result, level);
-
-        // Hash the node's index (parameter value index)
         result = FingerprintUtility::HashFunction(result, node->GetIndex());
-
-        // Hash the number of children
         result = FingerprintUtility::HashFunction(result, node->GetChildrenCount());
 
         if (level > 0)

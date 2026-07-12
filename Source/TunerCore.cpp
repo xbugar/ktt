@@ -1,4 +1,3 @@
-#include <TunerCore.h>
 #include <cctype>
 #include <fstream>
 #include <iostream>
@@ -20,8 +19,9 @@
 #include <Output/TunerMetadata.h>
 #include <Utility/ErrorHandling/Assert.h>
 #include <Utility/FileSystem.h>
-#include <Utility/Logger/Logger.h>
 #include <Utility/Fingerprint/FingerprintUtility.h>
+#include <Utility/Logger/Logger.h>
+#include <TunerCore.h>
 
 namespace ktt
 {
