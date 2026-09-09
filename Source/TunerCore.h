@@ -73,6 +73,7 @@ public:
     void RemoveArgument(const ArgumentId& id);
     void SaveArgument(const ArgumentId& id, const std::string& file) const;
     void SetReadOnlyArgumentCache(const bool flag);
+    void SetWriteOnlyArgumentZero(const bool flag);
 
     // Kernel running and validation
     KernelResult RunKernel(const KernelId id, const KernelConfiguration& configuration, const KernelDimensions& dimensions,
@@ -103,6 +104,7 @@ public:
     void ClearConfigurationData(const KernelId id);
     uint64_t GetConfigurationsCount(const KernelId id) const;
     KernelConfiguration GetBestConfiguration(const KernelId id) const;
+    void SetUseGracefulInterrupt(bool use);
     KernelConfiguration CreateConfiguration(const KernelId id, const ParameterInput& parameters) const;
     std::string GetKernelSource(const KernelId id, const KernelConfiguration& configuration) const;
     std::string GetKernelDefinitionSource(const KernelDefinitionId id, const KernelConfiguration& configuration) const;
@@ -125,6 +127,8 @@ public:
     void SynchronizeDevice();
     void SetProfilingCounters(const std::vector<std::string>& counters);
     void SetCompilerOptions(const std::string& options, const bool overrideDefault = false);
+    std::string GetCompilerOptions();
+    void AddCompilerOptions(const std::string& options);
     void SetCompiler(const std::string& compiler);
     void SetGlobalSizeType(const GlobalSizeType type);
     void SetAutomaticGlobalSizeCorrection(const bool flag);

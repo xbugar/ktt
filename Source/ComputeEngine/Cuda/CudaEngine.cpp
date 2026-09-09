@@ -2,7 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
+#include <map>
 #include <numeric>
+#include <set>
 
 #include <Api/KttException.h>
 #include <ComputeEngine/Cuda/Buffers/CudaDeviceBuffer.h>
@@ -31,7 +34,7 @@ namespace ktt
 {
 
 CudaEngine::CudaEngine(const DeviceIndex deviceIndex, const uint32_t queueCount) :
-    m_Configuration(GlobalSizeType::CUDA),
+    ComputeEngine(GlobalSizeType::CUDA),
     m_DeviceIndex(deviceIndex),
     m_DeviceInfo(0, ""),
     m_KernelCache(10),
@@ -85,7 +88,7 @@ CudaEngine::CudaEngine(const DeviceIndex deviceIndex, const uint32_t queueCount)
 }
 
 CudaEngine::CudaEngine(const ComputeApiInitializer& initializer, std::vector<QueueId>& assignedQueueIds) :
-    m_Configuration(GlobalSizeType::CUDA),
+    ComputeEngine(GlobalSizeType::CUDA),
     m_DeviceIndex(0),
     m_DeviceInfo(0, ""),
     m_KernelCache(10),
@@ -166,6 +169,17 @@ void CudaEngine::Sanitize(const QueueId queueId)
 
     CudaStream& stream = *m_Streams[queueId];
     CheckError(cuMemsetD8Async(m_L2CacheDevicePtr, 0, m_L2CacheSize, stream.GetStream()), "cuMemsetD8Async");
+    CheckError(cuStreamSynchronize(stream.GetStream()), "cuStreamSynchronize");
+}
+
+void CudaEngine::ZeroBuffer(const ArgumentId& id, const QueueId queueId)
+{
+    if (!ContainsKey(m_Buffers, id) || !ContainsKey(m_Streams, queueId))
+        return;
+
+    auto& buffer = *m_Buffers[id];
+    CudaStream& stream = *m_Streams[queueId];
+    CheckError(cuMemsetD8Async(*buffer.GetBuffer(), 0, buffer.GetSize(), stream.GetStream()), "cuMemsetD8Async");
     CheckError(cuStreamSynchronize(stream.GetStream()), "cuStreamSynchronize");
 }
 

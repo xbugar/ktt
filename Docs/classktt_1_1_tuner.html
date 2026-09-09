@@ -198,6 +198,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a0a1a716f864e73eac7b0a29b5d2f2868"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab906111fbc44d2a7be1afad5c9b131a1" id="r_ab906111fbc44d2a7be1afad5c9b131a1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#ab906111fbc44d2a7be1afad5c9b131a1">SetReadOnlyArgumentCache</a> (const bool flag)</td></tr>
 <tr class="separator:ab906111fbc44d2a7be1afad5c9b131a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad23034b68a06e12bcf705850ff417198" id="r_ad23034b68a06e12bcf705850ff417198"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#ad23034b68a06e12bcf705850ff417198">SetWriteOnlyArgumentZero</a> (const bool flag)</td></tr>
+<tr class="separator:ad23034b68a06e12bcf705850ff417198"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a78ced5f956d194f95d1eab209c0da355" id="r_a78ced5f956d194f95d1eab209c0da355"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classktt_1_1_kernel_result.html">KernelResult</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#a78ced5f956d194f95d1eab209c0da355">Run</a> (const <a class="el" href="namespacektt.html#a47b4d6f1468a13007692b8bd5dbe42ba">KernelId</a> id, const <a class="el" href="classktt_1_1_kernel_configuration.html">KernelConfiguration</a> &amp;configuration, const std::vector&lt; <a class="el" href="classktt_1_1_buffer_output_descriptor.html">BufferOutputDescriptor</a> &gt; &amp;output)</td></tr>
 <tr class="separator:a78ced5f956d194f95d1eab209c0da355"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab31626c6097eb5a3241a88da1bf0deb6" id="r_ab31626c6097eb5a3241a88da1bf0deb6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classktt_1_1_kernel_result.html">KernelResult</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#ab31626c6097eb5a3241a88da1bf0deb6">Run</a> (const <a class="el" href="namespacektt.html#a47b4d6f1468a13007692b8bd5dbe42ba">KernelId</a> id, const <a class="el" href="classktt_1_1_kernel_configuration.html">KernelConfiguration</a> &amp;configuration, const <a class="el" href="namespacektt.html#a0663ac471935f6606ce780ddf3657565">KernelDimensions</a> &amp;dimensions, const std::vector&lt; <a class="el" href="classktt_1_1_buffer_output_descriptor.html">BufferOutputDescriptor</a> &gt; &amp;output)</td></tr>
@@ -238,8 +240,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a3679d4ac2025d73efbe37b74e6eca40d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaff564535e11125821fb39b1bd863fdb" id="r_aaff564535e11125821fb39b1bd863fdb"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#aaff564535e11125821fb39b1bd863fdb">SetSearcher</a> (const <a class="el" href="namespacektt.html#a47b4d6f1468a13007692b8bd5dbe42ba">KernelId</a> id, std::unique_ptr&lt; <a class="el" href="classktt_1_1_searcher.html">Searcher</a> &gt; searcher)</td></tr>
 <tr class="separator:aaff564535e11125821fb39b1bd863fdb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5d3f186e7b1c183ab98521fee59012bf" id="r_a5d3f186e7b1c183ab98521fee59012bf"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#a5d3f186e7b1c183ab98521fee59012bf">SetProfileBasedSearcher</a> (const <a class="el" href="namespacektt.html#a47b4d6f1468a13007692b8bd5dbe42ba">KernelId</a> id, const std::string &amp;modelPath, const bool useBuiltinModule=true, const uint batchSize=5, const uint neighborSize=100, const uint randomSize=10)</td></tr>
-<tr class="separator:a5d3f186e7b1c183ab98521fee59012bf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4dc36465862702deb48bc403757d5236" id="r_a4dc36465862702deb48bc403757d5236"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#a4dc36465862702deb48bc403757d5236">SetProfileBasedSearcher</a> (const <a class="el" href="namespacektt.html#a47b4d6f1468a13007692b8bd5dbe42ba">KernelId</a> id, const std::string &amp;modelPath, const bool useBuiltinModule=true, const uint batchSize=5, const uint neighborSize=100, const uint randomSize=10, const std::optional&lt; uint64_t &gt; seed=std::nullopt)</td></tr>
+<tr class="separator:a4dc36465862702deb48bc403757d5236"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6cb8723b66860de215a6417a7e21e755" id="r_a6cb8723b66860de215a6417a7e21e755"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#a6cb8723b66860de215a6417a7e21e755">InitializeConfigurationData</a> (const <a class="el" href="namespacektt.html#a47b4d6f1468a13007692b8bd5dbe42ba">KernelId</a> id)</td></tr>
 <tr class="separator:a6cb8723b66860de215a6417a7e21e755"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af42ce644ec24f9efdf677de13c86b813" id="r_af42ce644ec24f9efdf677de13c86b813"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#af42ce644ec24f9efdf677de13c86b813">ClearConfigurationData</a> (const <a class="el" href="namespacektt.html#a47b4d6f1468a13007692b8bd5dbe42ba">KernelId</a> id)</td></tr>
@@ -250,6 +252,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:aa41ed40d10c35ab62b819f60538cb413"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a360361884d6c490d557d9926da3b813d" id="r_a360361884d6c490d557d9926da3b813d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classktt_1_1_kernel_configuration.html">KernelConfiguration</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#a360361884d6c490d557d9926da3b813d">GetBestConfiguration</a> (const <a class="el" href="namespacektt.html#a47b4d6f1468a13007692b8bd5dbe42ba">KernelId</a> id) const</td></tr>
 <tr class="separator:a360361884d6c490d557d9926da3b813d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aff618d27349992155522f2fa3d201009" id="r_aff618d27349992155522f2fa3d201009"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#aff618d27349992155522f2fa3d201009">SetUseGracefulInterrupt</a> (bool use)</td></tr>
+<tr class="separator:aff618d27349992155522f2fa3d201009"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a888c5696b3aac3ff9892df7ebbb7022e" id="r_a888c5696b3aac3ff9892df7ebbb7022e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classktt_1_1_kernel_configuration.html">KernelConfiguration</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#a888c5696b3aac3ff9892df7ebbb7022e">CreateConfiguration</a> (const <a class="el" href="namespacektt.html#a47b4d6f1468a13007692b8bd5dbe42ba">KernelId</a> id, const <a class="el" href="namespacektt.html#aef951ec46e383694c8512ddaa6b200d6">ParameterInput</a> &amp;parameters) const</td></tr>
 <tr class="separator:a888c5696b3aac3ff9892df7ebbb7022e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afa014f51574f99a828f040895290f3f4" id="r_afa014f51574f99a828f040895290f3f4"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#afa014f51574f99a828f040895290f3f4">GetKernelSource</a> (const <a class="el" href="namespacektt.html#a47b4d6f1468a13007692b8bd5dbe42ba">KernelId</a> id, const <a class="el" href="classktt_1_1_kernel_configuration.html">KernelConfiguration</a> &amp;configuration) const</td></tr>
@@ -286,6 +290,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ab5a9ca12b75ea217b0a7f9f68e28639a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a55f33ebad9ebaacc135235cf3226b51a" id="r_a55f33ebad9ebaacc135235cf3226b51a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#a55f33ebad9ebaacc135235cf3226b51a">SetCompilerOptions</a> (const std::string &amp;options, const bool overrideDefault=false)</td></tr>
 <tr class="separator:a55f33ebad9ebaacc135235cf3226b51a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abc95a193423bc2b20a24907a065ec4f1" id="r_abc95a193423bc2b20a24907a065ec4f1"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#abc95a193423bc2b20a24907a065ec4f1">GetCompilerOptions</a> ()</td></tr>
+<tr class="separator:abc95a193423bc2b20a24907a065ec4f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ace410c22798d87e96d806e3b7913cad5" id="r_ace410c22798d87e96d806e3b7913cad5"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#ace410c22798d87e96d806e3b7913cad5">AddCompilerOptions</a> (const std::string &amp;options)</td></tr>
+<tr class="separator:ace410c22798d87e96d806e3b7913cad5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abad90d545997c5a94242cd8335aa409d" id="r_abad90d545997c5a94242cd8335aa409d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#abad90d545997c5a94242cd8335aa409d">SetCompiler</a> (const std::string &amp;compiler)</td></tr>
 <tr class="separator:abad90d545997c5a94242cd8335aa409d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abd1c985b64a88a2b66835c4afa9fdc8f" id="r_abd1c985b64a88a2b66835c4afa9fdc8f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classktt_1_1_tuner.html#abd1c985b64a88a2b66835c4afa9fdc8f">SetGlobalSizeType</a> (const <a class="el" href="namespacektt.html#a16e643cd2325370c79affaeee8ef85f0">GlobalSizeType</a> type)</td></tr>
@@ -1080,6 +1088,30 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Id assigned to kernel argument by tuner. The id can be used in other API methods. </dd></dl>
+
+</div>
+</div>
+<a id="ace410c22798d87e96d806e3b7913cad5" name="ace410c22798d87e96d806e3b7913cad5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ace410c22798d87e96d806e3b7913cad5">&#9670;&#160;</a></span>AddCompilerOptions()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void ktt::Tuner::AddCompilerOptions </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>options</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Adds the specified options to the currently set compute API compiler options. The options are automatically prepended with a single space character. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">options</td><td>Compiler options that will be appended. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
@@ -1958,7 +1990,8 @@ template&lt;typename T &gt; </div>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Resets tuning process and clears generated configurations for the specified kernel. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Resets tuning process and clears generated configurations for the specified kernel. </p><dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000002">Deprecated:</a></b></dt><dd>Use <a class="el" href="classktt_1_1_tuner.html#af42ce644ec24f9efdf677de13c86b813">ClearConfigurationData()</a> method instead. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">id</td><td>Id of kernel whose data will be cleared. </td></tr>
   </table>
@@ -2131,6 +2164,24 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="abc95a193423bc2b20a24907a065ec4f1" name="abc95a193423bc2b20a24907a065ec4f1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abc95a193423bc2b20a24907a065ec4f1">&#9670;&#160;</a></span>GetCompilerOptions()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::string ktt::Tuner::GetCompilerOptions </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Returns the currently set compute API compiler options. </p><dl class="section return"><dt>Returns</dt><dd>Currently set compiler options. </dd></dl>
+
+</div>
+</div>
 <a id="aa41ed40d10c35ab62b819f60538cb413" name="aa41ed40d10c35ab62b819f60538cb413"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aa41ed40d10c35ab62b819f60538cb413">&#9670;&#160;</a></span>GetConfigurationsCount()</h2>
 
@@ -2189,7 +2240,7 @@ template&lt;typename T &gt; </div>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Collects the information about a kernel and the current device that is needed to save or query its tuning results in the KTT database. Computes the fingerprints identifying the kernel's tuning space (kernel source, tuning parameters and the whole configuration space) and captures the properties of the currently active device (name, type, vendor, compute API and API-specific details such as OpenCL/Vulkan extensions or CUDA compute capability). The returned value is the descriptor passed to the ktt::db::Database methods, e.g. SaveResults, SimpleGetBestResults or GetBestResults. The inputData field is left empty and may be filled in by the caller before saving. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Collects the information about a kernel and the current device that is needed to save or query its tuning results in the KTT database. Computes the fingerprints identifying the kernel's tuning space (kernel source, tuning parameters and the whole configuration space) and captures the properties of the currently active device (name, type, vendor, compute API and API-specific details such as OpenCL/Vulkan extensions or CUDA compute capability). The returned value is the descriptor passed to the <a class="el" href="classktt_1_1db_1_1_database.html">ktt::db::Database</a> methods, e.g. SaveResults, SimpleGetBestResults or GetBestResults. The inputData field is left empty and may be filled in by the caller before saving. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">id</td><td>Id of kernel for which the tuning information is collected. </td></tr>
   </table>
@@ -3067,8 +3118,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a5d3f186e7b1c183ab98521fee59012bf" name="a5d3f186e7b1c183ab98521fee59012bf"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a5d3f186e7b1c183ab98521fee59012bf">&#9670;&#160;</a></span>SetProfileBasedSearcher()</h2>
+<a id="a4dc36465862702deb48bc403757d5236" name="a4dc36465862702deb48bc403757d5236"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4dc36465862702deb48bc403757d5236">&#9670;&#160;</a></span>SetProfileBasedSearcher()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -3107,7 +3158,13 @@ template&lt;typename T &gt; </div>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const uint&#160;</td>
-          <td class="paramname"><em>randomSize</em> = <code>10</code>&#160;</td>
+          <td class="paramname"><em>randomSize</em> = <code>10</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::optional&lt; uint64_t &gt;&#160;</td>
+          <td class="paramname"><em>seed</em> = <code>std::nullopt</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -3124,6 +3181,7 @@ template&lt;typename T &gt; </div>
     <tr><td class="paramname">batchSize</td><td>number of configuration from which the fastest one is profiled. Default value also needs to be changed in TuningLoader/Commands/SearcherCommand.cpp </td></tr>
     <tr><td class="paramname">neighborSize</td><td>number of neighboring configurations that are used for batch selection. Default value also needs to be changed in TuningLoader/Commands/SearcherCommand.cpp </td></tr>
     <tr><td class="paramname">randomSize</td><td>number of random configurations that are used for batch selection. Default value also needs to be changed in TuningLoader/Commands/SearcherCommand.cpp </td></tr>
+    <tr><td class="paramname">seed</td><td>Optional seed for the source of randomness used by the searcher. See <a class="el" href="classktt_1_1_searcher.html#ab3771c463b6e76d226968a5c49f7c9fa">Searcher::SetSeed</a> method for more information. Note that the seed makes the sequence of random numbers drawn by the searcher reproducible, but it does not make the tuning process deterministic, because the searcher also bases its decisions on profiling counters and kernel durations measured during tuning, which fluctuate between tuning runs. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3381,7 +3439,7 @@ template&lt;typename T &gt; </div>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Sets searcher which will be used during kernel tuning. If no searcher is specified, <a class="el" href="classktt_1_1_deterministic_searcher.html">DeterministicSearcher</a> will be used. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Sets searcher which will be used during kernel tuning. If no searcher is specified, <a class="el" href="classktt_1_1_deterministic_searcher.html">DeterministicSearcher</a> will be used. Searchers which explore the configuration space randomly can be given a seed which makes the sequence of random numbers they draw reproducible. See <a class="el" href="classktt_1_1_searcher.html#ab3771c463b6e76d226968a5c49f7c9fa">Searcher::SetSeed</a> method for more information. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">id</td><td>Id of kernel for which searcher will be set. </td></tr>
     <tr><td class="paramname">searcher</td><td><a class="el" href="classktt_1_1_searcher.html">Searcher</a> which decides which kernel configuration will be launched next. See <a class="el" href="classktt_1_1_searcher.html">Searcher</a> for more information. </td></tr>
@@ -3417,6 +3475,30 @@ template&lt;typename T &gt; </div>
 <p>Sets time unit used for printing of results. Default time unit is milliseconds. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">unit</td><td>Time unit which will be used for printing of results. See <a class="el" href="namespacektt.html#a161b9af8714615ef2c1770b020ce1511">TimeUnit</a> for more information. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aff618d27349992155522f2fa3d201009" name="aff618d27349992155522f2fa3d201009"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aff618d27349992155522f2fa3d201009">&#9670;&#160;</a></span>SetUseGracefulInterrupt()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void ktt::Tuner::SetUseGracefulInterrupt </td>
+          <td>(</td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>use</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Toggles graceful interruption of kernel tuning through the Tune method. When enabled, a SIGINT handler is registered at the beginning of tuning, and the tuning is stopped after the currently tested configuration finishes instead of being terminated immediately. The results of configurations tested so far are returned. Graceful interruption is disabled by default. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">use</td><td>If true, tuning will be gracefully interrupted when SIGINT is received. It will be terminated immediately otherwise. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3552,6 +3634,30 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="ad23034b68a06e12bcf705850ff417198" name="ad23034b68a06e12bcf705850ff417198"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad23034b68a06e12bcf705850ff417198">&#9670;&#160;</a></span>SetWriteOnlyArgumentZero()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void ktt::Tuner::SetWriteOnlyArgumentZero </td>
+          <td>(</td>
+          <td class="paramtype">const bool&#160;</td>
+          <td class="paramname"><em>flag</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>When enabled, write-only kernel arguments are kept in GPU memory across configurations and zeroed in-place (via cuMemset) instead of being freed and reallocated for each configuration. This keeps buffer addresses stable across the tuning run, eliminating per-configuration variation in DRAM partition mapping that can otherwise cause measurement instability. Disabled by default. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">flag</td><td>If true, write-only argument zeroing is enabled. It is disabled otherwise. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="acf0bb2189bf6c1210c42b0f1ddd93399" name="acf0bb2189bf6c1210c42b0f1ddd93399"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#acf0bb2189bf6c1210c42b0f1ddd93399">&#9670;&#160;</a></span>SimulateKernelTuning()</h2>
 
@@ -3583,7 +3689,8 @@ template&lt;typename T &gt; </div>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Performs simulated tuning process for the specified kernel. The kernel is not tuned, execution times are read from the provided results. Creates configuration space based on combinations of provided kernel parameters and constraints. The configurations will be launched in order that depends on specified <a class="el" href="classktt_1_1_searcher.html">Searcher</a>. This method can be used to test behaviour and performance of newly implemented searchers. The provided results should correspond to the results output by the same kernel during regular tuning. </p><dl class="params"><dt>Parameters</dt><dd>
+<p>Performs simulated tuning process for the specified kernel. The kernel is not tuned, execution times are read from the provided results. Creates configuration space based on combinations of provided kernel parameters and constraints. The configurations will be launched in order that depends on specified <a class="el" href="classktt_1_1_searcher.html">Searcher</a>. This method can be used to test behaviour and performance of newly implemented searchers. The provided results should correspond to the results output by the same kernel during regular tuning. </p><dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000001">Deprecated:</a></b></dt><dd>Use <a class="el" href="classktt_1_1_tuner.html#a3679d4ac2025d73efbe37b74e6eca40d">SimulateTuning()</a> method instead. </dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">id</td><td>Id of the kernel for simulated tuning. </td></tr>
     <tr><td class="paramname">results</td><td>Results from which the kernel execution times will be retrieved. </td></tr>
@@ -3652,7 +3759,7 @@ template&lt;typename T &gt; </div>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Blocks until all commands submitted to KTT device are completed. </p>
+<p>Blocks until all commands submitted to KTT device are completed. </p><dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000003">Deprecated:</a></b></dt><dd>Use <a class="el" href="classktt_1_1_tuner.html#aa38e76c15db1d25743288ebccd67df3b">SynchronizeDevice()</a> or <a class="el" href="classktt_1_1_tuner.html#ad1cc2c4aac72510f028ada44a0283fab">SynchronizeQueues()</a> method instead. </dd></dl>
 
 </div>
 </div>

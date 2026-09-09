@@ -1,7 +1,7 @@
 var searchData=
 [
-  ['device_0',['device',['../structktt_1_1db_1_1_tuning_info.html#ad44eec921e74d9c5ac291f55bd0d27a2',1,'ktt::db::TuningInfo']]],
-  ['deviceidentifier_1',['deviceIdentifier',['../structktt_1_1db_1_1_device_info.html#a5eaf23bca098fe11244a055f10a7d4f8',1,'ktt::db::DeviceInfo']]],
-  ['duration_2',['duration',['../structktt_1_1_duration_measurement_result.html#af4a7de36e7b13fab4396b3a666835321',1,'ktt::DurationMeasurementResult']]],
-  ['durationcalculationmethod_3',['durationCalculationMethod',['../structktt_1_1_precise_measurement_parameters.html#a6eac0fa438276ef44f1f17461fc8e38e',1,'ktt::PreciseMeasurementParameters']]]
+  ['computeapi_0',['computeapi',['../structktt_1_1db_1_1_device_info.html#a480826d1f99d9b16f0d90ee893e63eab',1,'ktt::db::DeviceInfo::computeApi'],['../structktt_1_1db_1_1_device_api.html#aa574da825723aa832aa1f6b7667cfeff',1,'ktt::db::DeviceApi::computeApi'],['../structktt_1_1db_1_1_device.html#abd041a21e9980bdd245f3a972a6a2d24',1,'ktt::db::Device::computeApi']]],
+  ['createdat_1',['createdAt',['../structktt_1_1db_1_1_run_sync_record.html#aaceb1fffd40d69ad5d43fa104a685bf8',1,'ktt::db::RunSyncRecord']]],
+  ['cudacomputecapabilitymajor_2',['cudacomputecapabilitymajor',['../structktt_1_1db_1_1_device_info.html#a8c3982541cb98480ee05ba40905693e3',1,'ktt::db::DeviceInfo::cudaComputeCapabilityMajor'],['../structktt_1_1db_1_1_device_api.html#a85cb0401cd57fd6f58c0b0a37cb4320d',1,'ktt::db::DeviceApi::cudaComputeCapabilityMajor'],['../structktt_1_1db_1_1_device.html#a26dab7bd67cc17b0d4c62a81ea478e66',1,'ktt::db::Device::cudaComputeCapabilityMajor']]],
+  ['cudacomputecapabilityminor_3',['cudacomputecapabilityminor',['../structktt_1_1db_1_1_device_info.html#afc7735eae3b774f90ecc1edaf3580969',1,'ktt::db::DeviceInfo::cudaComputeCapabilityMinor'],['../structktt_1_1db_1_1_device_api.html#a1093adf33a584a759c145ec3f0d9ce83',1,'ktt::db::DeviceApi::cudaComputeCapabilityMinor'],['../structktt_1_1db_1_1_device.html#acebab768c9468d734f9d1e4c53ce1759',1,'ktt::db::Device::cudaComputeCapabilityMinor']]]
 ];

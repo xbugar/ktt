@@ -1,8 +1,12 @@
 var searchData=
 [
-  ['samplecount_0',['sampleCount',['../structktt_1_1_duration_measurement_result.html#a1fac31c2ecf3b95a87ae0b205980a559',1,'ktt::DurationMeasurementResult']]],
-  ['sourcefingerprint_1',['sourceFingerprint',['../structktt_1_1db_1_1_tuning_space_info.html#ac23968153c7fec730af6cb3b32c610d4',1,'ktt::db::TuningSpaceInfo']]],
-  ['spacefingerprint_2',['spaceFingerprint',['../structktt_1_1db_1_1_tuning_space_info.html#ad25cbc313d50c45c43da1911dfa4574a',1,'ktt::db::TuningSpaceInfo']]],
-  ['spaceinfo_3',['spaceInfo',['../structktt_1_1db_1_1_tuning_info.html#acda51206e32c24f2c580c27cb040328d',1,'ktt::db::TuningInfo']]],
-  ['standarddeviation_4',['standardDeviation',['../structktt_1_1_duration_measurement_result.html#abe8518f243874d7d6815573515d23c0b',1,'ktt::DurationMeasurementResult']]]
+  ['m_5fconstantmemorysize_0',['m_ConstantMemorySize',['../structktt_1_1_kernel_compilation_data.html#a5fd344b2104da29fb6eac41348aec33f',1,'ktt::KernelCompilationData']]],
+  ['m_5fenable_1',['m_Enable',['../structktt_1_1_enable_bitfield_operators_3_01_validation_mode_01_4.html#a817e62a8f5d838d0c141e7438b9f2b31',1,'ktt::EnableBitfieldOperators&lt; ValidationMode &gt;']]],
+  ['m_5flocalmemorysize_2',['m_LocalMemorySize',['../structktt_1_1_kernel_compilation_data.html#a61dec24dc62784540fbffd92991e4a01',1,'ktt::KernelCompilationData']]],
+  ['m_5fmaxworkgroupsize_3',['m_MaxWorkGroupSize',['../structktt_1_1_kernel_compilation_data.html#ade0a08290bacddffccd02c5ba90e1672',1,'ktt::KernelCompilationData']]],
+  ['m_5fprivatememorysize_4',['m_PrivateMemorySize',['../structktt_1_1_kernel_compilation_data.html#a69be3334882825ff4648976ab78d03f3',1,'ktt::KernelCompilationData']]],
+  ['m_5fregisterscount_5',['m_RegistersCount',['../structktt_1_1_kernel_compilation_data.html#ad1039bd16e72094dae9e9bc304cbc64e',1,'ktt::KernelCompilationData']]],
+  ['maxpowerdiff_6',['maxPowerDiff',['../structktt_1_1_precise_measurement_parameters.html#a5a39237ce78f34f2454635bb4064d2c1',1,'ktt::PreciseMeasurementParameters']]],
+  ['maxtimems_7',['maxTimeMs',['../structktt_1_1_precise_measurement_parameters.html#a03be233cb7cb6e29d7c1d52227f3acc1',1,'ktt::PreciseMeasurementParameters']]],
+  ['mintimems_8',['minTimeMs',['../structktt_1_1_precise_measurement_parameters.html#a253725332eaf76e2d923e0959fa554b0',1,'ktt::PreciseMeasurementParameters']]]
 ];
