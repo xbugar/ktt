@@ -4,6 +4,7 @@ var hierarchy =
     [ "ktt::ComputationResult", "classktt_1_1_computation_result.html", null ],
     [ "ktt::ComputeApiInitializer", "classktt_1_1_compute_api_initializer.html", null ],
     [ "ktt::ComputeInterface", "classktt_1_1_compute_interface.html", null ],
+    [ "ktt::db::DeviceInfo", "structktt_1_1db_1_1_device_info.html", null ],
     [ "ktt::DeviceInfo", "classktt_1_1_device_info.html", null ],
     [ "ktt::DimensionVector", "classktt_1_1_dimension_vector.html", null ],
     [ "ktt::DurationMeasurementResult", "structktt_1_1_duration_measurement_result.html", null ],
@@ -33,5 +34,7 @@ var hierarchy =
       [ "ktt::TuningDuration", "classktt_1_1_tuning_duration.html", null ],
       [ "ktt::UnionCondition", "classktt_1_1_union_condition.html", null ]
     ] ],
-    [ "ktt::Tuner", "classktt_1_1_tuner.html", null ]
+    [ "ktt::Tuner", "classktt_1_1_tuner.html", null ],
+    [ "ktt::db::TuningInfo", "structktt_1_1db_1_1_tuning_info.html", null ],
+    [ "ktt::db::TuningSpaceInfo", "structktt_1_1db_1_1_tuning_space_info.html", null ]
 ];

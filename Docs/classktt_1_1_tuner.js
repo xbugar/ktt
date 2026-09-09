@@ -41,6 +41,7 @@ var classktt_1_1_tuner =
     [ "GetBestResult", "classktt_1_1_tuner.html#a6c6310da8e845787835727ef2ec6df6c", null ],
     [ "GetConfigurationsCount", "classktt_1_1_tuner.html#aa41ed40d10c35ab62b819f60538cb413", null ],
     [ "GetCurrentDeviceInfo", "classktt_1_1_tuner.html#a3a08f0fef2d05fd93913f6a461c8d77a", null ],
+    [ "GetDatabaseTuningInfo", "classktt_1_1_tuner.html#a613336762619e548323be5c201d96d23", null ],
     [ "GetDeviceInfo", "classktt_1_1_tuner.html#a4bc8f3f6cca5a25c91a26a78d1581e3f", null ],
     [ "GetKernelDefinitionId", "classktt_1_1_tuner.html#a9db4f79c0e1d7cc2e2eb3e194e6a0cb8", null ],
     [ "GetKernelDefinitionSource", "classktt_1_1_tuner.html#a226f0185c96bcc8f54b1b9deb9d6b4d8", null ],

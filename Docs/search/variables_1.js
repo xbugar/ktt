@@ -1,8 +1,7 @@
 var searchData=
 [
-  ['invalidargumentid_0',['InvalidArgumentId',['../namespacektt.html#a06314e7380eb0baeb140510fcae36003',1,'ktt']]],
-  ['invalidduration_1',['InvalidDuration',['../namespacektt.html#a903bdfdf84555ceb9eba5dc578c446bb',1,'ktt']]],
-  ['invalidkerneldefinitionid_2',['InvalidKernelDefinitionId',['../namespacektt.html#a275bc1cfb6ac089034630c96f78285d4',1,'ktt']]],
-  ['invalidkernelid_3',['InvalidKernelId',['../namespacektt.html#af007a5e422c999a5a8f4fd1d875cc7bf',1,'ktt']]],
-  ['invalidqueueid_4',['InvalidQueueId',['../namespacektt.html#ad611ee0e290241acfe5dcec46fce712c',1,'ktt']]]
+  ['device_0',['device',['../structktt_1_1db_1_1_tuning_info.html#ad44eec921e74d9c5ac291f55bd0d27a2',1,'ktt::db::TuningInfo']]],
+  ['deviceidentifier_1',['deviceIdentifier',['../structktt_1_1db_1_1_device_info.html#a5eaf23bca098fe11244a055f10a7d4f8',1,'ktt::db::DeviceInfo']]],
+  ['duration_2',['duration',['../structktt_1_1_duration_measurement_result.html#af4a7de36e7b13fab4396b3a666835321',1,'ktt::DurationMeasurementResult']]],
+  ['durationcalculationmethod_3',['durationCalculationMethod',['../structktt_1_1_precise_measurement_parameters.html#a6eac0fa438276ef44f1f17461fc8e38e',1,'ktt::PreciseMeasurementParameters']]]
 ];

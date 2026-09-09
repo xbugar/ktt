@@ -12,12 +12,12 @@ var searchData=
   ['compilererror_9',['CompilerError',['../namespacektt.html#aafca65fbebe616882f3343d1d37979fca9027a5aeb7743971341f4d6385244eb3',1,'ktt']]],
   ['compilerparameter_10',['CompilerParameter',['../namespacektt.html#a40f044858e46ef8c9bb3878e16249a4ba809c9c3a362cc352e0a333b80d77a142',1,'ktt']]],
   ['computationfailed_11',['ComputationFailed',['../namespacektt.html#a7ffb69a1caa29577202f4b1590ace695ac12871375c41d2ad6e44aeb147436c23',1,'ktt']]],
-  ['computationresult_12',['computationresult',['../classktt_1_1_computation_result.html',1,'ktt::ComputationResult'],['../classktt_1_1_computation_result.html#aeaf363205b19563407cfa3be25e40102',1,'ktt::ComputationResult::ComputationResult(const ComputationResult &amp;other)'],['../classktt_1_1_computation_result.html#a71a5366522c4ab3390762be4cfd506ba',1,'ktt::ComputationResult::ComputationResult(const std::string &amp;kernelFunction)'],['../classktt_1_1_computation_result.html#a6690facafa70d44b1c4fb9fcad2cacc9',1,'ktt::ComputationResult::ComputationResult()']]],
+  ['computationresult_12',['computationresult',['../classktt_1_1_computation_result.html#aeaf363205b19563407cfa3be25e40102',1,'ktt::ComputationResult::ComputationResult(const ComputationResult &amp;other)'],['../classktt_1_1_computation_result.html#a71a5366522c4ab3390762be4cfd506ba',1,'ktt::ComputationResult::ComputationResult(const std::string &amp;kernelFunction)'],['../classktt_1_1_computation_result.html#a6690facafa70d44b1c4fb9fcad2cacc9',1,'ktt::ComputationResult::ComputationResult()'],['../classktt_1_1_computation_result.html',1,'ktt::ComputationResult']]],
   ['computationresult_2eh_13',['ComputationResult.h',['../_computation_result_8h.html',1,'']]],
   ['computeactionid_14',['ComputeActionId',['../namespacektt.html#a2b7801a49d987ff600bfdf06ddcbacf4',1,'ktt']]],
-  ['computeapi_15',['ComputeApi',['../namespacektt.html#a9738ef47337610739add496ce522de0a',1,'ktt']]],
+  ['computeapi_15',['computeapi',['../structktt_1_1db_1_1_device_info.html#a480826d1f99d9b16f0d90ee893e63eab',1,'ktt::db::DeviceInfo::computeApi'],['../namespacektt.html#a9738ef47337610739add496ce522de0a',1,'ktt::ComputeApi']]],
   ['computeapi_2eh_16',['ComputeApi.h',['../_compute_api_8h.html',1,'']]],
-  ['computeapiinitializer_17',['computeapiinitializer',['../classktt_1_1_compute_api_initializer.html',1,'ktt::ComputeApiInitializer'],['../classktt_1_1_compute_api_initializer.html#a0c6b772c0164ec1af736b8c8e4787f03',1,'ktt::ComputeApiInitializer::ComputeApiInitializer()']]],
+  ['computeapiinitializer_17',['computeapiinitializer',['../classktt_1_1_compute_api_initializer.html#a0c6b772c0164ec1af736b8c8e4787f03',1,'ktt::ComputeApiInitializer::ComputeApiInitializer()'],['../classktt_1_1_compute_api_initializer.html',1,'ktt::ComputeApiInitializer']]],
   ['computeapiinitializer_2eh_18',['ComputeApiInitializer.h',['../_compute_api_initializer_8h.html',1,'']]],
   ['computebuffer_19',['ComputeBuffer',['../namespacektt.html#ab65fcc4157cfe64ccd1d00b177ccb5af',1,'ktt']]],
   ['computecontext_20',['ComputeContext',['../namespacektt.html#a467b3b72592ac439e8b6964eb3b1a94d',1,'ktt']]],
@@ -41,5 +41,7 @@ var searchData=
   ['createconfiguration_38',['CreateConfiguration',['../classktt_1_1_tuner.html#a888c5696b3aac3ff9892df7ebbb7022e',1,'ktt::Tuner']]],
   ['createsimplekernel_39',['CreateSimpleKernel',['../classktt_1_1_tuner.html#a136a3e45466bc0434484b06ae338c3cc',1,'ktt::Tuner']]],
   ['cuda_40',['cuda',['../namespacektt.html#a9738ef47337610739add496ce522de0aaa33b7755e5f9b504d2d038eaca4ff28d',1,'ktt::CUDA'],['../namespacektt.html#a16e643cd2325370c79affaeee8ef85f0aa33b7755e5f9b504d2d038eaca4ff28d',1,'ktt::CUDA']]],
-  ['custom_41',['custom',['../namespacektt.html#a615cf89b27d4d1f734af56573e5c2e01a90589c47f06eb971d548591f23c285af',1,'ktt::Custom'],['../namespacektt.html#a79871821a23eee2b543fec77b52c54d7a90589c47f06eb971d548591f23c285af',1,'ktt::Custom']]]
+  ['cudacomputecapabilitymajor_41',['cudaComputeCapabilityMajor',['../structktt_1_1db_1_1_device_info.html#a8c3982541cb98480ee05ba40905693e3',1,'ktt::db::DeviceInfo']]],
+  ['cudacomputecapabilityminor_42',['cudaComputeCapabilityMinor',['../structktt_1_1db_1_1_device_info.html#afc7735eae3b774f90ecc1edaf3580969',1,'ktt::db::DeviceInfo']]],
+  ['custom_43',['custom',['../namespacektt.html#a615cf89b27d4d1f734af56573e5c2e01a90589c47f06eb971d548591f23c285af',1,'ktt::Custom'],['../namespacektt.html#a79871821a23eee2b543fec77b52c54d7a90589c47f06eb971d548591f23c285af',1,'ktt::Custom']]]
 ];

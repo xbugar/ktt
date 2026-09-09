@@ -1,6 +1,11 @@
 var annotated_dup =
 [
     [ "ktt", "namespacektt.html", [
+      [ "db", null, [
+        [ "DeviceInfo", "structktt_1_1db_1_1_device_info.html", "structktt_1_1db_1_1_device_info" ],
+        [ "TuningInfo", "structktt_1_1db_1_1_tuning_info.html", "structktt_1_1db_1_1_tuning_info" ],
+        [ "TuningSpaceInfo", "structktt_1_1db_1_1_tuning_space_info.html", "structktt_1_1db_1_1_tuning_space_info" ]
+      ] ],
       [ "BufferOutputDescriptor", "classktt_1_1_buffer_output_descriptor.html", "classktt_1_1_buffer_output_descriptor" ],
       [ "ComputationResult", "classktt_1_1_computation_result.html", "classktt_1_1_computation_result" ],
       [ "ComputeApiInitializer", "classktt_1_1_compute_api_initializer.html", "classktt_1_1_compute_api_initializer" ],
