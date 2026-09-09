@@ -11,8 +11,8 @@ namespace ktt::db
 size_t RunRepository::CreateRun(sqlite3* connection, const Run& run)
 {
     const char* runSQL = R"(
-        INSERT INTO tuning_run (guid, space_id, device_id, device_api_id, output_format_id, input_data)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO tuning_run (guid, space_id, device_id, device_api_id, output_format_id, input_data, device_identifier)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     )";
 
     sqlite3_stmt* runStmt = DatabaseUtility::PrepareStatement(
@@ -27,6 +27,7 @@ size_t RunRepository::CreateRun(sqlite3* connection, const Run& run)
     sqlite3_bind_int64(runStmt, 4, static_cast<sqlite3_int64>(run.deviceApiId));
     sqlite3_bind_int(runStmt, 5, static_cast<int>(run.outputFormat));
     DatabaseUtility::BindOptionalText(runStmt, 6, run.inputData);
+    DatabaseUtility::BindOptionalText(runStmt, 7, run.deviceIdentifier);
 
     const int result = sqlite3_step(runStmt);
 
@@ -46,8 +47,8 @@ size_t RunRepository::CreateRunWithGuid(
 )
 {
     const char* runSQL = R"(
-        INSERT INTO tuning_run (guid, space_id, device_id, device_api_id, output_format_id, input_data, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO tuning_run (guid, space_id, device_id, device_api_id, output_format_id, input_data, created_at, device_identifier)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     )";
 
     sqlite3_stmt* runStmt = DatabaseUtility::PrepareStatement(
@@ -62,6 +63,7 @@ size_t RunRepository::CreateRunWithGuid(
     sqlite3_bind_int(runStmt, 5, static_cast<int>(run.outputFormat));
     DatabaseUtility::BindOptionalText(runStmt, 6, run.inputData);
     sqlite3_bind_text(runStmt, 7, createdAt.c_str(), -1, SQLITE_TRANSIENT);
+    DatabaseUtility::BindOptionalText(runStmt, 8, run.deviceIdentifier);
 
     const int result = sqlite3_step(runStmt);
 
@@ -120,7 +122,8 @@ std::vector<RunSyncRecord> RunRepository::GetAllRuns(sqlite3* connection)
             device_api.extensions,
             tuning_run.output_format_id,
             tuning_run.input_data,
-            tuning_run.created_at
+            tuning_run.created_at,
+            tuning_run.device_identifier
         FROM tuning_run
         JOIN tuning_space ON tuning_space.id = tuning_run.space_id
         JOIN tuning_source ON tuning_source.id = tuning_space.source_id
@@ -182,6 +185,10 @@ std::vector<RunSyncRecord> RunRepository::GetAllRuns(sqlite3* connection)
 
         row.createdAt = DatabaseUtility::ReadTextColumn(runStmt, 14);
 
+        const bool deviceIdentifierIsNull = sqlite3_column_type(runStmt, 15) == SQLITE_NULL;
+        if (!deviceIdentifierIsNull)
+            row.deviceInfo.deviceIdentifier = DatabaseUtility::ReadTextColumn(runStmt, 15);
+
         runs.push_back(std::move(row));
     }
 
@@ -205,7 +212,8 @@ std::vector<RunQueryResult> RunRepository::GetRunsBySpaceId(
             device_api.version_major,
             device_api.version_minor,
             device_api.extensions,
-            tuning_run.output_format_id
+            tuning_run.output_format_id,
+            tuning_run.device_identifier
         FROM tuning_run
         JOIN device_info ON device_info.id = tuning_run.device_id
         JOIN device_api ON device_api.id = tuning_run.device_api_id
@@ -266,6 +274,10 @@ std::vector<RunQueryResult> RunRepository::GetRunsBySpaceId(
             row.deviceInfo.extensions = DatabaseUtility::ReadTextColumn(runStmt, 9);
 
         row.outputFormat = static_cast<ktt::OutputFormat>(sqlite3_column_int(runStmt, 10));
+
+        const bool deviceIdentifierIsNull = sqlite3_column_type(runStmt, 11) == SQLITE_NULL;
+        if (!deviceIdentifierIsNull)
+            row.deviceInfo.deviceIdentifier = DatabaseUtility::ReadTextColumn(runStmt, 11);
 
         runs.push_back(std::move(row));
     }

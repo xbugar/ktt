@@ -54,6 +54,7 @@ erDiagram
         INTEGER output_format_id FK "NOT NULL"
         TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
         TEXT input_data "nullable"
+        TEXT device_identifier "nullable"
     }
 
     tuning_result {
@@ -83,3 +84,8 @@ erDiagram
   - `tuning_space` — unique on `(space_fingerprint, parameter_fingerprint, source_id)`
 - A `tuning_run` is uniquely identified across databases by its `guid`, which is what
   `SyncFromFile` uses to skip already-imported runs.
+- `tuning_run.device_identifier` is the persistent hardware identifier of the device the run executed on
+  (the device UUID reported by the compute API, e.g. `GPU-<uuid>` for CUDA). It originates from
+  `ktt::DeviceInfo::GetDeviceIdentifier()` and is carried through `ktt::db::DeviceInfo::deviceIdentifier`. It is
+  nullable: the C++/CPU backend and devices whose driver does not expose a UUID leave it `NULL`. It is preserved
+  across databases by `SyncFromFile`.

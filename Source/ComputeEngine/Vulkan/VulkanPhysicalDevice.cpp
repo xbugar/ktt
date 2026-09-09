@@ -1,5 +1,7 @@
 #ifdef KTT_API_VULKAN
 
+#include <cstdio>
+
 #include <Api/KttException.h>
 #include <ComputeEngine/Vulkan/VulkanPhysicalDevice.h>
 #include <ComputeEngine/Vulkan/VulkanUtility.h>
@@ -50,6 +52,24 @@ DeviceInfo VulkanPhysicalDevice::GetInfo() const
     
     DeviceInfo result(m_Index, properties.deviceName);
     result.SetVendor(std::to_string(properties.vendorID));
+
+    // Persistent hardware identifier: the device UUID exposed through Vulkan 1.1 core (vkGetPhysicalDeviceProperties2).
+    VkPhysicalDeviceIDProperties idProperties{};
+    idProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
+
+    VkPhysicalDeviceProperties2 properties2{};
+    properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    properties2.pNext = &idProperties;
+
+    vkGetPhysicalDeviceProperties2(m_Device, &properties2);
+
+    const auto* uuid = idProperties.deviceUUID;
+    char identifier[37];
+    std::snprintf(identifier, sizeof(identifier),
+        "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+        uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7],
+        uuid[8], uuid[9], uuid[10], uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]);
+    result.SetDeviceIdentifier(identifier);
 
     std::vector<std::string> extensions = GetExtensions();
     std::string mergedExtensions;

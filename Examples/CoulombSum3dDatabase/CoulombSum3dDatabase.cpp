@@ -159,8 +159,6 @@ public:
                        + ";gridSize=" + std::to_string(m_gridWidth);
         db.SaveResults(save, results, {ktt::OutputFormat::JSON, 2});
 
-
-
         // --- Optional: tune compiler options on top of the best kernel config ---
         if (!m_sepCompTuning) return;
         auto bestConfig = m_tuner.GetBestConfiguration(m_kernel);

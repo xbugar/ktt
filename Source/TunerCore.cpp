@@ -398,6 +398,11 @@ ktt::db::TuningInfo TunerCore::GetDatabaseTuningInfo(const KernelId id) const
             d.type = deviceInfo.GetDeviceTypeString();
             d.vendor = deviceInfo.GetVendor();
 
+            if (const auto& identifier = deviceInfo.GetDeviceIdentifier(); !identifier.empty())
+            {
+                d.deviceIdentifier = identifier;
+            }
+
             if (d.computeApi == ComputeApi::OpenCL || d.computeApi == ComputeApi::Vulkan)
             {
                 d.extensions = deviceInfo.GetExtensions();

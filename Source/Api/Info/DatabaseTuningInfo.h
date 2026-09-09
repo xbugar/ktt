@@ -16,6 +16,7 @@ namespace ktt::db
 struct DeviceInfo
 {
     std::string name; ///< Device name (e.g., "GeForce RTX 3090")
+    std::optional<std::string> deviceIdentifier; ///< Persistent hardware identifier of the device (e.g. device UUID), empty when the compute API does not expose one
     std::string vendor; ///< Device vendor (e.g., "NVIDIA", "AMD")
     std::string type; ///< Device type (e.g., "GPU", "CPU")
     std::optional<std::string> extensions; ///< Supported device extensions (optional)

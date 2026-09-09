@@ -79,7 +79,8 @@ CREATE TABLE IF NOT EXISTS tuning_run
     device_api_id    INTEGER NOT NULL REFERENCES device_api (id),
     output_format_id INTEGER NOT NULL REFERENCES output_format (id),
     created_at       TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
-    input_data       TEXT
+    input_data       TEXT,
+    device_identifier TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_tuning_run_space_id ON tuning_run (space_id);
 CREATE INDEX IF NOT EXISTS idx_tuning_run_guid ON tuning_run (guid);

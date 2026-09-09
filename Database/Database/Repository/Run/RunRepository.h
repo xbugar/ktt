@@ -23,6 +23,7 @@ struct Run
     size_t deviceApiId; ///< Reference to device_api.
     ktt::OutputFormat outputFormat{}; ///< Output format used for the run.
     std::optional<std::string> inputData; ///< Optional input data for the run.
+    std::optional<std::string> deviceIdentifier; ///< Persistent hardware identifier of the device, nullable.
 };
 
 /** @struct RunQueryResult

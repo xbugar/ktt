@@ -122,7 +122,8 @@ void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResul
              *device.id,
              *device.apiId,
              option.format,
-             tuningInfo.inputData}
+             tuningInfo.inputData,
+             tuningInfo.device.deviceIdentifier}
         );
 
         ResultRepository::CreateResults(m_Connection, runId, results, option.format, option.indent);
@@ -173,7 +174,7 @@ std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo &t, ui
     );
 }
 
-std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery &query) const
+std::vector<KernelResult> Database::GetBestResults(const GetBestResul``tsQuery &query) const
 {
     if (query.limit <= 0)
         return {};
@@ -313,7 +314,8 @@ size_t Database::SyncFromFile(const std::filesystem::path &sourceDatabase) const
                  *device.id,
                  *device.apiId,
                  record.outputFormat,
-                 record.inputData},
+                 record.inputData,
+                 record.deviceInfo.deviceIdentifier},
                 record.guid,
                 record.createdAt
             );
