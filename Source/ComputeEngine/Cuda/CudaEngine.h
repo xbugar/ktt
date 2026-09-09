@@ -102,9 +102,9 @@ public:
     void EnsureThreadContext() override;
     void SetCompiler(const std::string& compiler) override;
     void Sanitize(const QueueId queueId) override;
+    void ZeroBuffer(const ArgumentId& id, const QueueId queueId) override;
 
 private:
-    EngineConfiguration m_Configuration;
     DeviceIndex m_DeviceIndex;
     DeviceInfo m_DeviceInfo;
     IdGenerator<QueueId> m_QueueIdGenerator;

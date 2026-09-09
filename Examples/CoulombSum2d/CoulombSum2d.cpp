@@ -1,18 +1,18 @@
-#include "../ExampleReferenceKernel.h"
+#include "ExampleReferenceKernel.h"
 #include <memory>
 
 using namespace std;
 
 class CoulombSum2d : public ExampleReferenceKernel {
 protected:
-    CoulombSum2d(std::shared_ptr<ExampleRefKernelConfiguration> config, int defaultProblemSize, string exampleFolderPath,
+    CoulombSum2d(int argc, char **argv, string exampleFolderPath,
                  string defaultKernelFileBaseName, string defaultRefKernelFileBaseName) :
-        ExampleReferenceKernel(config, defaultProblemSize, exampleFolderPath,
+        ExampleReferenceKernel(argc, argv, exampleFolderPath,
                                defaultKernelFileBaseName, defaultRefKernelFileBaseName),
         // Since CoulombSum2d has O(n²) complexity (gridPoints × atoms), scale grid dimensions
         // with the fourth root of problem size to keep total work proportional
-        m_gridWidth(static_cast<size_t>(sqrt(m_problemSize)) * 16),
-        m_gridHeight(static_cast<size_t>(sqrt(m_problemSize)) * 16),
+        m_gridWidth(256),
+        m_gridHeight(256),
         m_ndRangeDimensions(m_gridWidth, m_gridHeight),
         m_numberOfAtoms(4000)
     {
@@ -24,11 +24,11 @@ protected:
     size_t m_gridHeight;
 
     // Total NDRange size matches number of grid points
-    const ktt::DimensionVector m_ndRangeDimensions;
+    ktt::DimensionVector m_ndRangeDimensions;
     const ktt::DimensionVector m_workGroupDimensions{1, 1};
 
-    const float m_gridSpacing = 0.5f;
-    const int m_numberOfAtoms;
+    float m_gridSpacing = 0.5f;
+    int m_numberOfAtoms;
 
     vector<float> m_atomInfo;
     vector<float> m_atomInfoX;
@@ -46,9 +46,23 @@ protected:
     ktt::ArgumentId m_gridSpacingId;
     ktt::ArgumentId m_energyGridId;
 
+    void InitCLI() override
+    {
+        ExampleBase::InitCLI();
+        UseInputSizeOption(2, m_ndRangeDimensions);
+        m_cli.AddOption({[this](const vector<string> &args) {
+            m_numberOfAtoms = stoul(args[0]);
+        }, "--atoms", "Set the number of atoms (expects int)", "<count>", 1});
+        m_cli.AddOption({[this](const vector<string> &args) {
+            m_gridSpacing = stof(args[0]);
+        }, "--spacing", "Set the grid spacing (expects float)", "<spacing>", 1});
+    }
+
     void InitData() override
     {
         // Declare data variables
+        m_gridWidth = m_ndRangeDimensions.GetSizeX();
+        m_gridHeight = m_ndRangeDimensions.GetSizeY();
         const size_t numberOfGridPoints = m_gridWidth * m_gridHeight;
         m_atomInfo.resize(4 * m_numberOfAtoms);
         m_atomInfoX.resize(m_numberOfAtoms);
@@ -72,14 +86,14 @@ protected:
     void InitKernel() override
     {
         // Add all kernel arguments
-        m_atomInfoId = m_tuner.AddArgumentVector(m_atomInfo, ktt::ArgumentAccessType::ReadOnly);
-        m_atomInfoXId = m_tuner.AddArgumentVector(m_atomInfoX, ktt::ArgumentAccessType::ReadOnly);
-        m_atomInfoYId = m_tuner.AddArgumentVector(m_atomInfoY, ktt::ArgumentAccessType::ReadOnly);
-        m_atomInfoZId = m_tuner.AddArgumentVector(m_atomInfoZ, ktt::ArgumentAccessType::ReadOnly);
-        m_atomInfoWId = m_tuner.AddArgumentVector(m_atomInfoW, ktt::ArgumentAccessType::ReadOnly);
-        m_numberOfAtomsId = m_tuner.AddArgumentScalar(m_numberOfAtoms);
-        m_gridSpacingId = m_tuner.AddArgumentScalar(m_gridSpacing);
-        m_energyGridId = m_tuner.AddArgumentVector(m_energyGrid, ktt::ArgumentAccessType::ReadWrite);
+        m_atomInfoId = m_tuner->AddArgumentVector(m_atomInfo, ktt::ArgumentAccessType::ReadOnly);
+        m_atomInfoXId = m_tuner->AddArgumentVector(m_atomInfoX, ktt::ArgumentAccessType::ReadOnly);
+        m_atomInfoYId = m_tuner->AddArgumentVector(m_atomInfoY, ktt::ArgumentAccessType::ReadOnly);
+        m_atomInfoZId = m_tuner->AddArgumentVector(m_atomInfoZ, ktt::ArgumentAccessType::ReadOnly);
+        m_atomInfoWId = m_tuner->AddArgumentVector(m_atomInfoW, ktt::ArgumentAccessType::ReadOnly);
+        m_numberOfAtomsId = m_tuner->AddArgumentScalar(m_numberOfAtoms);
+        m_gridSpacingId = m_tuner->AddArgumentScalar(m_gridSpacing);
+        m_energyGridId = m_tuner->AddArgumentVector(m_energyGrid, ktt::ArgumentAccessType::ReadWrite);
 
         // Configure main kernel
         InitKernelDefault("directCoulombSum", "CoulombSum", m_ndRangeDimensions,
@@ -91,31 +105,31 @@ protected:
     {
         UseFastMath();
 
-        m_tuner.AddParameter(m_kernel, "INNER_UNROLL_FACTOR", vector<uint64_t>{0, 1, 2, 4, 8, 16, 32});
-        m_tuner.AddParameter(m_kernel, "USE_CONSTANT_MEMORY", vector<uint64_t>{0, 1});
-        m_tuner.AddParameter(m_kernel, "VECTOR_TYPE", vector<uint64_t>{1, 2, 4, 8});
-        m_tuner.AddParameter(m_kernel, "USE_SOA", vector<uint64_t>{0, 1, 2});
+        m_tuner->AddParameter(m_kernel, "INNER_UNROLL_FACTOR", vector<uint64_t>{0, 1, 2, 4, 8, 16, 32});
+        m_tuner->AddParameter(m_kernel, "USE_CONSTANT_MEMORY", vector<uint64_t>{0, 1});
+        m_tuner->AddParameter(m_kernel, "VECTOR_TYPE", vector<uint64_t>{1, 2, 4, 8});
+        m_tuner->AddParameter(m_kernel, "USE_SOA", vector<uint64_t>{0, 1, 2});
 
         // Using vectorized SoA only makes sense when vectors are longer than 1.
         auto vectorizedSoA = [](const vector<uint64_t>& vector) {return vector[0] > 1 || vector[1] != 2;};
-        m_tuner.AddConstraint(m_kernel, {"VECTOR_TYPE", "USE_SOA"}, vectorizedSoA);
+        m_tuner->AddConstraint(m_kernel, {"VECTOR_TYPE", "USE_SOA"}, vectorizedSoA);
 
         // Divide NDRange in dimension x by OUTER_UNROLL_FACTOR.
-        m_tuner.AddParameter(m_kernel, "OUTER_UNROLL_FACTOR", vector<uint64_t>{1, 2, 4, 8});
-        m_tuner.AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::X, "OUTER_UNROLL_FACTOR",
+        m_tuner->AddParameter(m_kernel, "OUTER_UNROLL_FACTOR", vector<uint64_t>{1, 2, 4, 8});
+        m_tuner->AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::X, "OUTER_UNROLL_FACTOR",
             ktt::ModifierAction::Divide);
 
         // Multiply work-group size in dimensions x and y by the following parameters (effectively setting work-group size to their values).
-        m_tuner.AddParameter(m_kernel, "WORK_GROUP_SIZE_X", vector<uint64_t>{4, 8, 16, 32});
-        m_tuner.AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Local, ktt::ModifierDimension::X, "WORK_GROUP_SIZE_X",
+        m_tuner->AddParameter(m_kernel, "WORK_GROUP_SIZE_X", vector<uint64_t>{4, 8, 16, 32});
+        m_tuner->AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Local, ktt::ModifierDimension::X, "WORK_GROUP_SIZE_X",
             ktt::ModifierAction::Multiply);
-        m_tuner.AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::X, "WORK_GROUP_SIZE_X",
+        m_tuner->AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::X, "WORK_GROUP_SIZE_X",
             ktt::ModifierAction::Divide);
 
-        m_tuner.AddParameter(m_kernel, "WORK_GROUP_SIZE_Y", vector<uint64_t>{1, 2, 4, 8, 16, 32});
-        m_tuner.AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Local, ktt::ModifierDimension::Y, "WORK_GROUP_SIZE_Y",
+        m_tuner->AddParameter(m_kernel, "WORK_GROUP_SIZE_Y", vector<uint64_t>{1, 2, 4, 8, 16, 32});
+        m_tuner->AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Local, ktt::ModifierDimension::Y, "WORK_GROUP_SIZE_Y",
             ktt::ModifierAction::Multiply);
-        m_tuner.AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::Y, "WORK_GROUP_SIZE_Y",
+        m_tuner->AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::Y, "WORK_GROUP_SIZE_Y",
             ktt::ModifierAction::Divide);
     }
 
@@ -133,7 +147,7 @@ protected:
 
 int main(int argc, char **argv)
 {
-    unique_ptr<CoulombSum2d> coulombSum2d = CoulombSum2d::Create<CoulombSum2d>(argc, argv, 256, "Examples/CoulombSum2d",
+    unique_ptr<CoulombSum2d> coulombSum2d = CoulombSum2d::Create<CoulombSum2d>(argc, argv, "Examples/CoulombSum2d",
         "CoulombSum2d", "CoulombSum2dReference");
     coulombSum2d->Run();
 

@@ -5,7 +5,7 @@
  * power measurement.
  */
 
-#include "../ExampleBase.h"
+#include "ExampleBase.h"
 #include <cstdint>
 #include <memory>
 #include <chrono>
@@ -17,19 +17,20 @@ using namespace std;
 
 class Dummy : public ExampleBase {
 protected:
-    Dummy(shared_ptr<ExampleConfiguration> config, int defaultProblemSize,
+    Dummy(int argc, char **argv,
           string exampleFolderPath, string defaultKernelFileBaseName) :
-        ExampleBase(config, defaultProblemSize, exampleFolderPath, defaultKernelFileBaseName)
+        ExampleBase(argc, argv, exampleFolderPath, defaultKernelFileBaseName)
     {
         m_gridSize = 256;
         m_atoms = 1024;
+        m_sleepDuration = 0;
+        m_randomizeSleep = false;
 
-        m_tuner.SetTimeUnit(ktt::TimeUnit::Microseconds);
         UseFastMath();
 
         // Set precise measurement by default.
-        if (m_config->preciseParams == nullopt) {
-            m_config->preciseParams = ktt::PreciseMeasurementParameters(2000, 20000, 0.005, ktt::DurationCalculationMethod::Minimum);
+        if (m_preciseParams == nullopt) {
+            m_preciseParams = ktt::PreciseMeasurementParameters(2000, 20000, 0.005, ktt::DurationCalculationMethod::Minimum);
         }
     }
 
@@ -37,8 +38,8 @@ protected:
 
     // Sleep in the manipulator (can be randomized to 0, sleepDuration)
     // (makes power measurement more challenging due to changes in GPU temperature)
-    const unsigned int sleepDuration = 0;
-    const bool randomizeSleep = true;
+    unsigned int m_sleepDuration;
+    bool m_randomizeSleep;
 
     int m_gridSize;
     int m_atoms;
@@ -61,6 +62,29 @@ protected:
     ktt::ArgumentId m_energyGridId;
 
     float m_gridSpacing = 0.5f;
+
+    void InitCLI() override
+    {
+        ExampleBase::InitCLI();
+
+        m_cli.AddOption({[this](const vector<string> &args) {
+                m_gridSize = stoi(args[0]);
+            }, "--gridSize", "Set size of cube grid, will be A x A x A (expects int)", "<A>",1
+        });
+        m_cli.AddOption({[this](const vector<string> &args) {
+                m_atoms = stoi(args[0]);
+            }, "--atomsNum", "Set number of atoms (expects int)", "<atomsNum>",1
+        });
+        m_cli.AddOption({[this](const vector<string> &args) {
+                 m_sleepDuration = stoi(args[0]);
+            }, "--sleepDuration", "Set sleep duration in milliseconds (expects int)", "<ms>",1
+        });
+        m_cli.AddOption({[this](const vector<string> &) {
+                m_randomizeSleep = true;
+            }, "--useRandomizedSleep", "Enable sleep duration randomization. Makes power measurement more challenging due"
+            "to changes in GPU temperature."
+        });
+    }
 
     void InitData() override
     {
@@ -89,24 +113,24 @@ protected:
         const ktt::DimensionVector ndRangeDimensions(m_gridSize / 32, m_gridSize / 4, m_gridSize);
         const ktt::DimensionVector workGroupDimensions(32, 4);
 
-        m_atomInfoId = m_tuner.AddArgumentVector(m_atomInfo, ktt::ArgumentAccessType::ReadOnly);
-        m_atomInfoXId = m_tuner.AddArgumentVector(m_atomInfoX, ktt::ArgumentAccessType::ReadOnly);
-        m_atomInfoYId = m_tuner.AddArgumentVector(m_atomInfoY, ktt::ArgumentAccessType::ReadOnly);
-        m_atomInfoZId = m_tuner.AddArgumentVector(m_atomInfoZ, ktt::ArgumentAccessType::ReadOnly);
-        m_atomInfoWId = m_tuner.AddArgumentVector(m_atomInfoW, ktt::ArgumentAccessType::ReadOnly);
-        m_atomsId = m_tuner.AddArgumentScalar(m_atoms);
-        m_gridSpacingId = m_tuner.AddArgumentScalar(m_gridSpacing);
-        m_gridDimId = m_tuner.AddArgumentScalar(m_gridSize);
-        m_energyGridId = m_tuner.AddArgumentVector(m_energyGrid, ktt::ArgumentAccessType::WriteOnly);
+        m_atomInfoId = m_tuner->AddArgumentVector(m_atomInfo, ktt::ArgumentAccessType::ReadOnly);
+        m_atomInfoXId = m_tuner->AddArgumentVector(m_atomInfoX, ktt::ArgumentAccessType::ReadOnly);
+        m_atomInfoYId = m_tuner->AddArgumentVector(m_atomInfoY, ktt::ArgumentAccessType::ReadOnly);
+        m_atomInfoZId = m_tuner->AddArgumentVector(m_atomInfoZ, ktt::ArgumentAccessType::ReadOnly);
+        m_atomInfoWId = m_tuner->AddArgumentVector(m_atomInfoW, ktt::ArgumentAccessType::ReadOnly);
+        m_atomsId = m_tuner->AddArgumentScalar(m_atoms);
+        m_gridSpacingId = m_tuner->AddArgumentScalar(m_gridSpacing);
+        m_gridDimId = m_tuner->AddArgumentScalar(m_gridSize);
+        m_energyGridId = m_tuner->AddArgumentVector(m_energyGrid, ktt::ArgumentAccessType::WriteOnly);
 
         InitKernelDefault("directCoulombSum", "CoulombSum", ndRangeDimensions,
                           {m_atomInfoId, m_atomInfoXId, m_atomInfoYId, m_atomInfoZId, m_atomInfoWId,
                            m_atomsId, m_gridSpacingId, m_gridDimId, m_energyGridId});
 
-        m_tuner.SetLauncher(m_kernel, [this](ktt::ComputeInterface& interface)
+        m_tuner->SetLauncher(m_kernel, [this](ktt::ComputeInterface& interface)
         {
-            uint64_t sleep = sleepDuration;
-            if (randomizeSleep)
+            uint64_t sleep = m_sleepDuration;
+            if (m_randomizeSleep)
                 sleep = (sleep*rand())/RAND_MAX;
             std::this_thread::sleep_for(std::chrono::milliseconds(sleep));
             interface.RunKernel(m_definition);
@@ -115,16 +139,16 @@ protected:
 
     void InitTuningSpace() override
     {
-        m_tuner.AddParameter(m_kernel, "DUMMY_1", vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
-        m_tuner.AddParameter(m_kernel, "DUMMY_2", vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
-        m_tuner.AddParameter(m_kernel, "DUMMY_3", vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
-        m_tuner.AddParameter(m_kernel, "DUMMY_4", vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        m_tuner->AddParameter(m_kernel, "DUMMY_1", vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        m_tuner->AddParameter(m_kernel, "DUMMY_2", vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        m_tuner->AddParameter(m_kernel, "DUMMY_3", vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        m_tuner->AddParameter(m_kernel, "DUMMY_4", vector<uint64_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
     }
 };
 
 int main(int argc, char **argv)
 {
-    unique_ptr<Dummy> dummy = Dummy::Create<Dummy>(argc, argv, 0, "Examples/Dummy", "Dummy");
+    unique_ptr<Dummy> dummy = Dummy::Create<Dummy>(argc, argv, "Examples/Dummy", "Dummy");
     dummy->Run();
 
     return 0;

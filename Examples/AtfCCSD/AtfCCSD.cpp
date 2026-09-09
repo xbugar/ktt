@@ -1,13 +1,13 @@
-#include "../ExampleBase.h"
+#include "ExampleBase.h"
 #include <memory>
 
 using namespace std;
 
 class AtfCCSD : public ExampleBase {
 protected:
-    AtfCCSD(shared_ptr<ExampleConfiguration> config, int defaultProblemSize,
+    AtfCCSD(int argc, char **argv,
             string exampleFolderPath, string defaultKernelFileBaseName) :
-        ExampleBase(config, defaultProblemSize, exampleFolderPath, defaultKernelFileBaseName)
+        ExampleBase(argc, argv, exampleFolderPath, defaultKernelFileBaseName)
     {
         // Keep OpenCL sizes as specified
         m_inputSize1 = 24;
@@ -17,8 +17,6 @@ protected:
         m_inputSize5 = 16;
         m_inputSize6 = 16;
         m_inputSize7 = 24;
-
-        m_tuner.SetGlobalSizeType(ktt::GlobalSizeType::OpenCL);
 
         const std::string atfSamplesPath1 = GetKernelFilePath(exampleFolderPath, "TcAbcdefGebcDfga1");
         const std::string atfSamplesPath2 = GetKernelFilePath(exampleFolderPath, "TcAbcdefGebcDfga2");
@@ -74,6 +72,22 @@ protected:
         return values;
     }
 
+    void InitCLI() override 
+    {
+        ExampleBase::InitCLI();
+        m_cli.AddOption({[this](const vector<string> &args) {
+                array<reference_wrapper<uint64_t>, 7> inputs = {
+                    m_inputSize1, m_inputSize2, m_inputSize3, m_inputSize4,
+                    m_inputSize5, m_inputSize6, m_inputSize7,
+                };
+                for (int i = 0; i < 7; i++) 
+                {
+                    inputs[i].get() = stoull(args[i]);
+                }
+            }, "--inputSize", "Sets input size (expects 7 ints)", "<a> <b> <c> <d> <e> <f> <g>", 7
+        });
+    }
+
     void InitData() override
     {
         // Initialize data buffers with fixed sizes
@@ -105,19 +119,20 @@ protected:
 
     void InitKernel() override
     {
-        m_aId = m_tuner.AddArgumentVector(m_a, ktt::ArgumentAccessType::ReadOnly);
-        m_bId = m_tuner.AddArgumentVector(m_b, ktt::ArgumentAccessType::ReadOnly);
-        m_cId = m_tuner.AddArgumentVector(m_c, ktt::ArgumentAccessType::ReadWrite);
-        m_intResId = m_tuner.AddArgumentVector(m_intRes, ktt::ArgumentAccessType::ReadWrite);
-        m_resId = m_tuner.AddArgumentVector(m_res, ktt::ArgumentAccessType::ReadWrite);
+        m_tuner->SetGlobalSizeType(ktt::GlobalSizeType::OpenCL);
+        m_aId = m_tuner->AddArgumentVector(m_a, ktt::ArgumentAccessType::ReadOnly);
+        m_bId = m_tuner->AddArgumentVector(m_b, ktt::ArgumentAccessType::ReadOnly);
+        m_cId = m_tuner->AddArgumentVector(m_c, ktt::ArgumentAccessType::ReadWrite);
+        m_intResId = m_tuner->AddArgumentVector(m_intRes, ktt::ArgumentAccessType::ReadWrite);
+        m_resId = m_tuner->AddArgumentVector(m_res, ktt::ArgumentAccessType::ReadWrite);
 
-        m_definition = m_tuner.AddKernelDefinitionFromFile("tc_1", m_kernelPath1, ktt::DimensionVector(), ktt::DimensionVector());
-        m_definition2 = m_tuner.AddKernelDefinitionFromFile("tc_2", m_kernelPath2, ktt::DimensionVector(), ktt::DimensionVector());
+        m_definition = m_tuner->AddKernelDefinitionFromFile("tc_1", m_kernelPath1, ktt::DimensionVector(), ktt::DimensionVector());
+        m_definition2 = m_tuner->AddKernelDefinitionFromFile("tc_2", m_kernelPath2, ktt::DimensionVector(), ktt::DimensionVector());
 
-        m_tuner.SetArguments(m_definition, {m_aId, m_bId, m_resId, m_intResId});
-        m_tuner.SetArguments(m_definition2, {m_intResId, m_resId, m_cId});
+        m_tuner->SetArguments(m_definition, {m_aId, m_bId, m_resId, m_intResId});
+        m_tuner->SetArguments(m_definition2, {m_intResId, m_resId, m_cId});
 
-        m_kernel = m_tuner.CreateCompositeKernel("CCSD", {m_definition, m_definition2}, [this](ktt::ComputeInterface& interface)
+        m_kernel = m_tuner->CreateCompositeKernel("CCSD", {m_definition, m_definition2}, [this](ktt::ComputeInterface& interface)
         {
             const auto& pairs = interface.GetCurrentConfiguration().GetPairs();
             size_t newResSize = m_resSize;
@@ -193,135 +208,135 @@ protected:
         auto NoPostInSecondKernelConstraint = [](const vector<uint64_t>& v) { return v[0] == 1 || (v[0] % v[1] == 0); };
 
         // Add parameters
-        m_tuner.AddParameter(m_kernel, "CACHE_L_CB", vector<uint64_t>{0, 1});
-        m_tuner.AddParameter(m_kernel, "CACHE_P_CB", vector<uint64_t>{0, 1});
-        m_tuner.AddParameter(m_kernel, "G_CB_RES_DEST_LEVEL", vector<uint64_t>{2});
-        m_tuner.AddParameter(m_kernel, "L_CB_RES_DEST_LEVEL", vector<uint64_t>{2, 1, 0});
-        m_tuner.AddParameter(m_kernel, "P_CB_RES_DEST_LEVEL", vector<uint64_t>{2, 1, 0});
+        m_tuner->AddParameter(m_kernel, "CACHE_L_CB", vector<uint64_t>{0, 1});
+        m_tuner->AddParameter(m_kernel, "CACHE_P_CB", vector<uint64_t>{0, 1});
+        m_tuner->AddParameter(m_kernel, "G_CB_RES_DEST_LEVEL", vector<uint64_t>{2});
+        m_tuner->AddParameter(m_kernel, "L_CB_RES_DEST_LEVEL", vector<uint64_t>{2, 1, 0});
+        m_tuner->AddParameter(m_kernel, "P_CB_RES_DEST_LEVEL", vector<uint64_t>{2, 1, 0});
 
-        m_tuner.AddParameter(m_kernel, "OCL_DIM_L_1", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
-        m_tuner.AddParameter(m_kernel, "OCL_DIM_L_2", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
-        m_tuner.AddParameter(m_kernel, "OCL_DIM_L_3", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
-        m_tuner.AddParameter(m_kernel, "OCL_DIM_L_4", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
-        m_tuner.AddParameter(m_kernel, "OCL_DIM_L_5", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
-        m_tuner.AddParameter(m_kernel, "OCL_DIM_L_6", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
-        m_tuner.AddParameter(m_kernel, "OCL_DIM_R_1", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
+        m_tuner->AddParameter(m_kernel, "OCL_DIM_L_1", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
+        m_tuner->AddParameter(m_kernel, "OCL_DIM_L_2", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
+        m_tuner->AddParameter(m_kernel, "OCL_DIM_L_3", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
+        m_tuner->AddParameter(m_kernel, "OCL_DIM_L_4", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
+        m_tuner->AddParameter(m_kernel, "OCL_DIM_L_5", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
+        m_tuner->AddParameter(m_kernel, "OCL_DIM_L_6", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
+        m_tuner->AddParameter(m_kernel, "OCL_DIM_R_1", vector<uint64_t>{0, 1, 2, 3, 4, 5, 6});
 
-        m_tuner.AddParameter(m_kernel, "INPUT_SIZE_L_1", vector<uint64_t>{m_inputSize1});
-        m_tuner.AddParameter(m_kernel, "L_CB_SIZE_L_1", ParameterRange(m_inputSize1));
-        m_tuner.AddParameter(m_kernel, "P_CB_SIZE_L_1", ParameterRange(m_inputSize1));
-        m_tuner.AddParameter(m_kernel, "NUM_WG_L_1", ParameterRange(m_inputSize1));
-        m_tuner.AddParameter(m_kernel, "NUM_WI_L_1", ParameterRange(m_inputSize1));
+        m_tuner->AddParameter(m_kernel, "INPUT_SIZE_L_1", vector<uint64_t>{m_inputSize1});
+        m_tuner->AddParameter(m_kernel, "L_CB_SIZE_L_1", ParameterRange(m_inputSize1));
+        m_tuner->AddParameter(m_kernel, "P_CB_SIZE_L_1", ParameterRange(m_inputSize1));
+        m_tuner->AddParameter(m_kernel, "NUM_WG_L_1", ParameterRange(m_inputSize1));
+        m_tuner->AddParameter(m_kernel, "NUM_WI_L_1", ParameterRange(m_inputSize1));
 
-        m_tuner.AddParameter(m_kernel, "INPUT_SIZE_L_2", vector<uint64_t>{m_inputSize2});
-        m_tuner.AddParameter(m_kernel, "L_CB_SIZE_L_2", ParameterRange(m_inputSize2));
-        m_tuner.AddParameter(m_kernel, "P_CB_SIZE_L_2", ParameterRange(m_inputSize2));
-        m_tuner.AddParameter(m_kernel, "NUM_WG_L_2", ParameterRange(m_inputSize2));
-        m_tuner.AddParameter(m_kernel, "NUM_WI_L_2", ParameterRange(m_inputSize2));
+        m_tuner->AddParameter(m_kernel, "INPUT_SIZE_L_2", vector<uint64_t>{m_inputSize2});
+        m_tuner->AddParameter(m_kernel, "L_CB_SIZE_L_2", ParameterRange(m_inputSize2));
+        m_tuner->AddParameter(m_kernel, "P_CB_SIZE_L_2", ParameterRange(m_inputSize2));
+        m_tuner->AddParameter(m_kernel, "NUM_WG_L_2", ParameterRange(m_inputSize2));
+        m_tuner->AddParameter(m_kernel, "NUM_WI_L_2", ParameterRange(m_inputSize2));
 
-        m_tuner.AddParameter(m_kernel, "INPUT_SIZE_L_3", vector<uint64_t>{m_inputSize3});
-        m_tuner.AddParameter(m_kernel, "L_CB_SIZE_L_3", ParameterRange(m_inputSize3));
-        m_tuner.AddParameter(m_kernel, "P_CB_SIZE_L_3", ParameterRange(m_inputSize3));
-        m_tuner.AddParameter(m_kernel, "NUM_WG_L_3", ParameterRange(m_inputSize3));
-        m_tuner.AddParameter(m_kernel, "NUM_WI_L_3", ParameterRange(m_inputSize3));
+        m_tuner->AddParameter(m_kernel, "INPUT_SIZE_L_3", vector<uint64_t>{m_inputSize3});
+        m_tuner->AddParameter(m_kernel, "L_CB_SIZE_L_3", ParameterRange(m_inputSize3));
+        m_tuner->AddParameter(m_kernel, "P_CB_SIZE_L_3", ParameterRange(m_inputSize3));
+        m_tuner->AddParameter(m_kernel, "NUM_WG_L_3", ParameterRange(m_inputSize3));
+        m_tuner->AddParameter(m_kernel, "NUM_WI_L_3", ParameterRange(m_inputSize3));
 
-        m_tuner.AddParameter(m_kernel, "INPUT_SIZE_L_4", vector<uint64_t>{m_inputSize4});
-        m_tuner.AddParameter(m_kernel, "L_CB_SIZE_L_4", ParameterRange(m_inputSize4));
-        m_tuner.AddParameter(m_kernel, "P_CB_SIZE_L_4", ParameterRange(m_inputSize4));
-        m_tuner.AddParameter(m_kernel, "NUM_WG_L_4", ParameterRange(m_inputSize4));
-        m_tuner.AddParameter(m_kernel, "NUM_WI_L_4", ParameterRange(m_inputSize4));
+        m_tuner->AddParameter(m_kernel, "INPUT_SIZE_L_4", vector<uint64_t>{m_inputSize4});
+        m_tuner->AddParameter(m_kernel, "L_CB_SIZE_L_4", ParameterRange(m_inputSize4));
+        m_tuner->AddParameter(m_kernel, "P_CB_SIZE_L_4", ParameterRange(m_inputSize4));
+        m_tuner->AddParameter(m_kernel, "NUM_WG_L_4", ParameterRange(m_inputSize4));
+        m_tuner->AddParameter(m_kernel, "NUM_WI_L_4", ParameterRange(m_inputSize4));
 
-        m_tuner.AddParameter(m_kernel, "INPUT_SIZE_L_5", vector<uint64_t>{m_inputSize5});
-        m_tuner.AddParameter(m_kernel, "L_CB_SIZE_L_5", ParameterRange(m_inputSize5));
-        m_tuner.AddParameter(m_kernel, "P_CB_SIZE_L_5", ParameterRange(m_inputSize5));
-        m_tuner.AddParameter(m_kernel, "NUM_WG_L_5", ParameterRange(m_inputSize5));
-        m_tuner.AddParameter(m_kernel, "NUM_WI_L_5", ParameterRange(m_inputSize5));
+        m_tuner->AddParameter(m_kernel, "INPUT_SIZE_L_5", vector<uint64_t>{m_inputSize5});
+        m_tuner->AddParameter(m_kernel, "L_CB_SIZE_L_5", ParameterRange(m_inputSize5));
+        m_tuner->AddParameter(m_kernel, "P_CB_SIZE_L_5", ParameterRange(m_inputSize5));
+        m_tuner->AddParameter(m_kernel, "NUM_WG_L_5", ParameterRange(m_inputSize5));
+        m_tuner->AddParameter(m_kernel, "NUM_WI_L_5", ParameterRange(m_inputSize5));
 
-        m_tuner.AddParameter(m_kernel, "INPUT_SIZE_L_6", vector<uint64_t>{m_inputSize6});
-        m_tuner.AddParameter(m_kernel, "L_CB_SIZE_L_6", ParameterRange(m_inputSize6));
-        m_tuner.AddParameter(m_kernel, "P_CB_SIZE_L_6", ParameterRange(m_inputSize6));
-        m_tuner.AddParameter(m_kernel, "NUM_WG_L_6", ParameterRange(m_inputSize6));
-        m_tuner.AddParameter(m_kernel, "NUM_WI_L_6", ParameterRange(m_inputSize6));
+        m_tuner->AddParameter(m_kernel, "INPUT_SIZE_L_6", vector<uint64_t>{m_inputSize6});
+        m_tuner->AddParameter(m_kernel, "L_CB_SIZE_L_6", ParameterRange(m_inputSize6));
+        m_tuner->AddParameter(m_kernel, "P_CB_SIZE_L_6", ParameterRange(m_inputSize6));
+        m_tuner->AddParameter(m_kernel, "NUM_WG_L_6", ParameterRange(m_inputSize6));
+        m_tuner->AddParameter(m_kernel, "NUM_WI_L_6", ParameterRange(m_inputSize6));
 
-        m_tuner.AddParameter(m_kernel, "INPUT_SIZE_R_1", vector<uint64_t>{m_inputSize7});
-        m_tuner.AddParameter(m_kernel, "L_CB_SIZE_R_1", ParameterRange(m_inputSize7));
-        m_tuner.AddParameter(m_kernel, "P_CB_SIZE_R_1", ParameterRange(m_inputSize7));
-        m_tuner.AddParameter(m_kernel, "NUM_WG_R_1", ParameterRange(m_inputSize7));
-        m_tuner.AddParameter(m_kernel, "NUM_WI_R_1", ParameterRange(m_inputSize7));
+        m_tuner->AddParameter(m_kernel, "INPUT_SIZE_R_1", vector<uint64_t>{m_inputSize7});
+        m_tuner->AddParameter(m_kernel, "L_CB_SIZE_R_1", ParameterRange(m_inputSize7));
+        m_tuner->AddParameter(m_kernel, "P_CB_SIZE_R_1", ParameterRange(m_inputSize7));
+        m_tuner->AddParameter(m_kernel, "NUM_WG_R_1", ParameterRange(m_inputSize7));
+        m_tuner->AddParameter(m_kernel, "NUM_WI_R_1", ParameterRange(m_inputSize7));
 
-        m_tuner.AddParameter(m_kernel, "L_REDUCTION", vector<uint64_t>{1});
-        m_tuner.AddParameter(m_kernel, "P_WRITE_BACK", vector<uint64_t>{0});
-        m_tuner.AddParameter(m_kernel, "L_WRITE_BACK", vector<uint64_t>{6});
+        m_tuner->AddParameter(m_kernel, "L_REDUCTION", vector<uint64_t>{1});
+        m_tuner->AddParameter(m_kernel, "P_WRITE_BACK", vector<uint64_t>{0});
+        m_tuner->AddParameter(m_kernel, "L_WRITE_BACK", vector<uint64_t>{6});
 
         // Add constraints
-        m_tuner.AddConstraint(m_kernel, {"G_CB_RES_DEST_LEVEL", "L_CB_RES_DEST_LEVEL", "P_CB_RES_DEST_LEVEL"}, DescendingConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_L_2"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_L_3"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_L_4"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_L_5"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_L_6"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_R_1"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_2", "OCL_DIM_L_3"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_2", "OCL_DIM_L_4"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_2", "OCL_DIM_L_5"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_2", "OCL_DIM_L_6"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_2", "OCL_DIM_R_1"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_3", "OCL_DIM_L_4"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_3", "OCL_DIM_L_5"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_3", "OCL_DIM_L_6"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_3", "OCL_DIM_R_1"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_4", "OCL_DIM_L_5"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_4", "OCL_DIM_L_6"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_4", "OCL_DIM_R_1"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_5", "OCL_DIM_L_6"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_5", "OCL_DIM_R_1"}, UnequalConstraint);
-        m_tuner.AddConstraint(m_kernel, {"OCL_DIM_L_6", "OCL_DIM_R_1"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"G_CB_RES_DEST_LEVEL", "L_CB_RES_DEST_LEVEL", "P_CB_RES_DEST_LEVEL"}, DescendingConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_L_2"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_L_3"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_L_4"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_L_5"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_L_6"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_1", "OCL_DIM_R_1"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_2", "OCL_DIM_L_3"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_2", "OCL_DIM_L_4"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_2", "OCL_DIM_L_5"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_2", "OCL_DIM_L_6"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_2", "OCL_DIM_R_1"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_3", "OCL_DIM_L_4"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_3", "OCL_DIM_L_5"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_3", "OCL_DIM_L_6"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_3", "OCL_DIM_R_1"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_4", "OCL_DIM_L_5"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_4", "OCL_DIM_L_6"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_4", "OCL_DIM_R_1"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_5", "OCL_DIM_L_6"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_5", "OCL_DIM_R_1"}, UnequalConstraint);
+        m_tuner->AddConstraint(m_kernel, {"OCL_DIM_L_6", "OCL_DIM_R_1"}, UnequalConstraint);
 
-        m_tuner.AddConstraint(m_kernel, {"L_CB_SIZE_L_1", "INPUT_SIZE_L_1"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"P_CB_SIZE_L_1", "L_CB_SIZE_L_1"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WG_L_1", "INPUT_SIZE_L_1", "L_CB_SIZE_L_1"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_1", "L_CB_SIZE_L_1", "P_CB_SIZE_L_1"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_1", "INPUT_SIZE_L_1", "NUM_WG_L_1"}, LessThanOrEqualCeilDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"L_CB_SIZE_L_1", "INPUT_SIZE_L_1"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"P_CB_SIZE_L_1", "L_CB_SIZE_L_1"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WG_L_1", "INPUT_SIZE_L_1", "L_CB_SIZE_L_1"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_1", "L_CB_SIZE_L_1", "P_CB_SIZE_L_1"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_1", "INPUT_SIZE_L_1", "NUM_WG_L_1"}, LessThanOrEqualCeilDivConstraint);
 
-        m_tuner.AddConstraint(m_kernel, {"L_CB_SIZE_L_2", "INPUT_SIZE_L_2"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"P_CB_SIZE_L_2", "L_CB_SIZE_L_2"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WG_L_2", "INPUT_SIZE_L_2", "L_CB_SIZE_L_2"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_2", "L_CB_SIZE_L_2", "P_CB_SIZE_L_2"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_2", "INPUT_SIZE_L_2", "NUM_WG_L_2"}, LessThanOrEqualCeilDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"L_CB_SIZE_L_2", "INPUT_SIZE_L_2"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"P_CB_SIZE_L_2", "L_CB_SIZE_L_2"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WG_L_2", "INPUT_SIZE_L_2", "L_CB_SIZE_L_2"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_2", "L_CB_SIZE_L_2", "P_CB_SIZE_L_2"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_2", "INPUT_SIZE_L_2", "NUM_WG_L_2"}, LessThanOrEqualCeilDivConstraint);
 
-        m_tuner.AddConstraint(m_kernel, {"L_CB_SIZE_L_3", "INPUT_SIZE_L_3"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"P_CB_SIZE_L_3", "L_CB_SIZE_L_3"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WG_L_3", "INPUT_SIZE_L_3", "L_CB_SIZE_L_3"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_3", "L_CB_SIZE_L_3", "P_CB_SIZE_L_3"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_3", "INPUT_SIZE_L_3", "NUM_WG_L_3"}, LessThanOrEqualCeilDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"L_CB_SIZE_L_3", "INPUT_SIZE_L_3"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"P_CB_SIZE_L_3", "L_CB_SIZE_L_3"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WG_L_3", "INPUT_SIZE_L_3", "L_CB_SIZE_L_3"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_3", "L_CB_SIZE_L_3", "P_CB_SIZE_L_3"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_3", "INPUT_SIZE_L_3", "NUM_WG_L_3"}, LessThanOrEqualCeilDivConstraint);
 
-        m_tuner.AddConstraint(m_kernel, {"L_CB_SIZE_L_4", "INPUT_SIZE_L_4"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"P_CB_SIZE_L_4", "L_CB_SIZE_L_4"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WG_L_4", "INPUT_SIZE_L_4", "L_CB_SIZE_L_4"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_4", "L_CB_SIZE_L_4", "P_CB_SIZE_L_4"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_4", "INPUT_SIZE_L_4", "NUM_WG_L_4"}, LessThanOrEqualCeilDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"L_CB_SIZE_L_4", "INPUT_SIZE_L_4"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"P_CB_SIZE_L_4", "L_CB_SIZE_L_4"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WG_L_4", "INPUT_SIZE_L_4", "L_CB_SIZE_L_4"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_4", "L_CB_SIZE_L_4", "P_CB_SIZE_L_4"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_4", "INPUT_SIZE_L_4", "NUM_WG_L_4"}, LessThanOrEqualCeilDivConstraint);
 
-        m_tuner.AddConstraint(m_kernel, {"L_CB_SIZE_L_5", "INPUT_SIZE_L_5"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"P_CB_SIZE_L_5", "L_CB_SIZE_L_5"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WG_L_5", "INPUT_SIZE_L_5", "L_CB_SIZE_L_5"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_5", "L_CB_SIZE_L_5", "P_CB_SIZE_L_5"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_5", "INPUT_SIZE_L_5", "NUM_WG_L_5"}, LessThanOrEqualCeilDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"L_CB_SIZE_L_5", "INPUT_SIZE_L_5"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"P_CB_SIZE_L_5", "L_CB_SIZE_L_5"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WG_L_5", "INPUT_SIZE_L_5", "L_CB_SIZE_L_5"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_5", "L_CB_SIZE_L_5", "P_CB_SIZE_L_5"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_5", "INPUT_SIZE_L_5", "NUM_WG_L_5"}, LessThanOrEqualCeilDivConstraint);
 
-        m_tuner.AddConstraint(m_kernel, {"L_CB_SIZE_L_6", "INPUT_SIZE_L_6"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"P_CB_SIZE_L_6", "L_CB_SIZE_L_6"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WG_L_6", "INPUT_SIZE_L_6", "L_CB_SIZE_L_6"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_6", "L_CB_SIZE_L_6", "P_CB_SIZE_L_6"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_L_6", "INPUT_SIZE_L_6", "NUM_WG_L_6"}, LessThanOrEqualCeilDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"L_CB_SIZE_L_6", "INPUT_SIZE_L_6"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"P_CB_SIZE_L_6", "L_CB_SIZE_L_6"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WG_L_6", "INPUT_SIZE_L_6", "L_CB_SIZE_L_6"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_6", "L_CB_SIZE_L_6", "P_CB_SIZE_L_6"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_L_6", "INPUT_SIZE_L_6", "NUM_WG_L_6"}, LessThanOrEqualCeilDivConstraint);
 
-        m_tuner.AddConstraint(m_kernel, {"L_CB_SIZE_R_1", "INPUT_SIZE_R_1"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"P_CB_SIZE_R_1", "L_CB_SIZE_R_1"}, DividesConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WG_R_1", "INPUT_SIZE_R_1", "L_CB_SIZE_R_1"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_R_1", "L_CB_SIZE_R_1", "P_CB_SIZE_R_1"}, DividesDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WI_R_1", "INPUT_SIZE_R_1", "NUM_WG_R_1"}, LessThanOrEqualCeilDivConstraint);
-        m_tuner.AddConstraint(m_kernel, {"NUM_WG_R_1", "L_CB_SIZE_R_1"}, NoPostInSecondKernelConstraint);
+        m_tuner->AddConstraint(m_kernel, {"L_CB_SIZE_R_1", "INPUT_SIZE_R_1"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"P_CB_SIZE_R_1", "L_CB_SIZE_R_1"}, DividesConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WG_R_1", "INPUT_SIZE_R_1", "L_CB_SIZE_R_1"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_R_1", "L_CB_SIZE_R_1", "P_CB_SIZE_R_1"}, DividesDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WI_R_1", "INPUT_SIZE_R_1", "NUM_WG_R_1"}, LessThanOrEqualCeilDivConstraint);
+        m_tuner->AddConstraint(m_kernel, {"NUM_WG_R_1", "L_CB_SIZE_R_1"}, NoPostInSecondKernelConstraint);
 
         // Thread modifiers for first kernel (definition)
-        m_tuner.AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::X,
+        m_tuner->AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::X,
             {"OCL_DIM_L_1", "NUM_WG_L_1", "NUM_WI_L_1", "OCL_DIM_L_2", "NUM_WG_L_2", "NUM_WI_L_2", "OCL_DIM_L_3", "NUM_WG_L_3", "NUM_WI_L_3",
             "OCL_DIM_L_4", "NUM_WG_L_4", "NUM_WI_L_4", "OCL_DIM_L_5", "NUM_WG_L_5", "NUM_WI_L_5", "OCL_DIM_L_6", "NUM_WG_L_6", "NUM_WI_L_6",
             "OCL_DIM_R_1", "NUM_WG_R_1", "NUM_WI_R_1"}, [](const uint64_t, const vector<uint64_t>& values)
@@ -335,7 +350,7 @@ protected:
                 + static_cast<uint64_t>(values[18] == 0) * values[19] * values[20];
         });
 
-        m_tuner.AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::Y,
+        m_tuner->AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::Y,
             {"OCL_DIM_L_1", "NUM_WG_L_1", "NUM_WI_L_1", "OCL_DIM_L_2", "NUM_WG_L_2", "NUM_WI_L_2", "OCL_DIM_L_3", "NUM_WG_L_3", "NUM_WI_L_3",
             "OCL_DIM_L_4", "NUM_WG_L_4", "NUM_WI_L_4", "OCL_DIM_L_5", "NUM_WG_L_5", "NUM_WI_L_5", "OCL_DIM_L_6", "NUM_WG_L_6", "NUM_WI_L_6",
             "OCL_DIM_R_1", "NUM_WG_R_1", "NUM_WI_R_1"}, [](const uint64_t, const vector<uint64_t>& values)
@@ -349,7 +364,7 @@ protected:
                 + static_cast<uint64_t>(values[18] == 1) * values[19] * values[20];
         });
 
-        m_tuner.AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::Z,
+        m_tuner->AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::Z,
             {"OCL_DIM_L_1", "NUM_WG_L_1", "NUM_WI_L_1", "OCL_DIM_L_2", "NUM_WG_L_2", "NUM_WI_L_2", "OCL_DIM_L_3", "NUM_WG_L_3", "NUM_WI_L_3",
             "OCL_DIM_L_4", "NUM_WG_L_4", "NUM_WI_L_4", "OCL_DIM_L_5", "NUM_WG_L_5", "NUM_WI_L_5", "OCL_DIM_L_6", "NUM_WG_L_6", "NUM_WI_L_6",
             "OCL_DIM_R_1", "NUM_WG_R_1", "NUM_WI_R_1"}, [](const uint64_t, const vector<uint64_t>& values)
@@ -364,7 +379,7 @@ protected:
         });
 
         // Thread modifiers for second kernel (definition2)
-        m_tuner.AddThreadModifier(m_kernel, {m_definition2}, ktt::ModifierType::Global, ktt::ModifierDimension::X,
+        m_tuner->AddThreadModifier(m_kernel, {m_definition2}, ktt::ModifierType::Global, ktt::ModifierDimension::X,
             {"OCL_DIM_L_1", "NUM_WG_L_1", "NUM_WI_L_1", "OCL_DIM_L_2", "NUM_WG_L_2", "NUM_WI_L_2", "OCL_DIM_L_3", "NUM_WG_L_3", "NUM_WI_L_3",
             "OCL_DIM_L_4", "NUM_WG_L_4", "NUM_WI_L_4", "OCL_DIM_L_5", "NUM_WG_L_5", "NUM_WI_L_5", "OCL_DIM_L_6", "NUM_WG_L_6", "NUM_WI_L_6",
             "OCL_DIM_R_1", "NUM_WI_R_1"}, [](const uint64_t, const vector<uint64_t>& values)
@@ -378,7 +393,7 @@ protected:
                 + static_cast<uint64_t>(values[18] == 0) * values[19];
         });
 
-        m_tuner.AddThreadModifier(m_kernel, {m_definition2}, ktt::ModifierType::Global, ktt::ModifierDimension::Y,
+        m_tuner->AddThreadModifier(m_kernel, {m_definition2}, ktt::ModifierType::Global, ktt::ModifierDimension::Y,
             {"OCL_DIM_L_1", "NUM_WG_L_1", "NUM_WI_L_1", "OCL_DIM_L_2", "NUM_WG_L_2", "NUM_WI_L_2", "OCL_DIM_L_3", "NUM_WG_L_3", "NUM_WI_L_3",
             "OCL_DIM_L_4", "NUM_WG_L_4", "NUM_WI_L_4", "OCL_DIM_L_5", "NUM_WG_L_5", "NUM_WI_L_5", "OCL_DIM_L_6", "NUM_WG_L_6", "NUM_WI_L_6",
             "OCL_DIM_R_1", "NUM_WI_R_1"}, [](const uint64_t, const vector<uint64_t>& values)
@@ -392,7 +407,7 @@ protected:
                 + static_cast<uint64_t>(values[18] == 1) * values[19];
         });
 
-        m_tuner.AddThreadModifier(m_kernel, {m_definition2}, ktt::ModifierType::Global, ktt::ModifierDimension::Z,
+        m_tuner->AddThreadModifier(m_kernel, {m_definition2}, ktt::ModifierType::Global, ktt::ModifierDimension::Z,
             {"OCL_DIM_L_1", "NUM_WG_L_1", "NUM_WI_L_1", "OCL_DIM_L_2", "NUM_WG_L_2", "NUM_WI_L_2", "OCL_DIM_L_3", "NUM_WG_L_3", "NUM_WI_L_3",
             "OCL_DIM_L_4", "NUM_WG_L_4", "NUM_WI_L_4", "OCL_DIM_L_5", "NUM_WG_L_5", "NUM_WI_L_5", "OCL_DIM_L_6", "NUM_WG_L_6", "NUM_WI_L_6",
             "OCL_DIM_R_1", "NUM_WI_R_1"}, [](const uint64_t, const vector<uint64_t>& values)
@@ -407,7 +422,7 @@ protected:
         });
 
         // Local thread modifiers
-        m_tuner.AddThreadModifier(m_kernel, {m_definition, m_definition2}, ktt::ModifierType::Local, ktt::ModifierDimension::X,
+        m_tuner->AddThreadModifier(m_kernel, {m_definition, m_definition2}, ktt::ModifierType::Local, ktt::ModifierDimension::X,
             {"OCL_DIM_L_1", "NUM_WI_L_1", "OCL_DIM_L_2", "NUM_WI_L_2", "OCL_DIM_L_3", "NUM_WI_L_3", "OCL_DIM_L_4", "NUM_WI_L_4",
             "OCL_DIM_L_5", "NUM_WI_L_5", "OCL_DIM_L_6", "NUM_WI_L_6", "OCL_DIM_R_1", "NUM_WI_R_1"},
             [](const uint64_t, const vector<uint64_t>& values)
@@ -421,7 +436,7 @@ protected:
                 + static_cast<uint64_t>(values[12] == 0) * values[13];
         });
 
-        m_tuner.AddThreadModifier(m_kernel, {m_definition, m_definition2}, ktt::ModifierType::Local, ktt::ModifierDimension::Y,
+        m_tuner->AddThreadModifier(m_kernel, {m_definition, m_definition2}, ktt::ModifierType::Local, ktt::ModifierDimension::Y,
             {"OCL_DIM_L_1", "NUM_WI_L_1", "OCL_DIM_L_2", "NUM_WI_L_2", "OCL_DIM_L_3", "NUM_WI_L_3", "OCL_DIM_L_4", "NUM_WI_L_4",
             "OCL_DIM_L_5", "NUM_WI_L_5", "OCL_DIM_L_6", "NUM_WI_L_6", "OCL_DIM_R_1", "NUM_WI_R_1"},
             [](const uint64_t, const vector<uint64_t>& values)
@@ -435,7 +450,7 @@ protected:
                 + static_cast<uint64_t>(values[12] == 1) * values[13];
         });
 
-        m_tuner.AddThreadModifier(m_kernel, {m_definition, m_definition2}, ktt::ModifierType::Local, ktt::ModifierDimension::Z,
+        m_tuner->AddThreadModifier(m_kernel, {m_definition, m_definition2}, ktt::ModifierType::Local, ktt::ModifierDimension::Z,
             {"OCL_DIM_L_1", "NUM_WI_L_1", "OCL_DIM_L_2", "NUM_WI_L_2", "OCL_DIM_L_3", "NUM_WI_L_3", "OCL_DIM_L_4", "NUM_WI_L_4",
             "OCL_DIM_L_5", "NUM_WI_L_5", "OCL_DIM_L_6", "NUM_WI_L_6", "OCL_DIM_R_1", "NUM_WI_R_1"},
             [](const uint64_t, const vector<uint64_t>& values)
@@ -453,7 +468,7 @@ protected:
 
 int main(int argc, char **argv)
 {
-    unique_ptr<AtfCCSD> atfCCSD = AtfCCSD::Create<AtfCCSD>(argc, argv, 1, "Examples/AtfCCSD", "AtfCCSD");
+    unique_ptr<AtfCCSD> atfCCSD = AtfCCSD::Create<AtfCCSD>(argc, argv, "Examples/AtfCCSD", "AtfCCSD");
     atfCCSD->Run();
 
     return 0;

@@ -1,4 +1,4 @@
-#include "../ExampleReferenceKernel.h"
+#include "ExampleReferenceKernel.h"
 #include <memory>
 
 using namespace std;
@@ -6,13 +6,13 @@ using namespace std;
 
 class KernelTunerPnpoly: public ExampleReferenceKernel {
 protected:
-    KernelTunerPnpoly(std::shared_ptr<ExampleRefKernelConfiguration> config, int defaultProblemSize,
+    KernelTunerPnpoly(int argc, char **argv,
               string exampleFolderPath, string defaultKernelFileBaseName,
               string defaultReferenceKernelFileBaseName):
-        ExampleReferenceKernel(config, defaultProblemSize, exampleFolderPath, defaultKernelFileBaseName,
+        ExampleReferenceKernel(argc, argv, exampleFolderPath, defaultKernelFileBaseName,
                 defaultReferenceKernelFileBaseName)
     {
-        m_dataSize = m_problemSize * 1024 * 1024;
+        m_dataSize = 20 * 1024 * 1024;
         m_vertSize = 600;
     }
 
@@ -30,6 +30,22 @@ protected:
     ktt::ArgumentId m_dataSizeId;
     ktt::ArgumentId m_vertSizeId;
 
+    void InitCLI() override
+    {
+        ExampleBase::InitCLI();
+
+        m_cli.AddOption({[this](const vector<string> &args) {
+                m_dataSize = stoul(args[0]);
+            }, "--dataSize", "Set the number of points to be tested for being inside the polygon (expects int)", 
+            "<pointNum>", 1
+        });
+        m_cli.AddOption({[this](const vector<string> &args) {
+                m_vertSize = stoul(args[0]);
+            }, "--vertSize", "Set the number of vertices in the polygon (expects int)", 
+            "<vertNum>", 1
+        });
+    }
+
     void InitData() override
     {
         // Declare data variables
@@ -46,10 +62,10 @@ protected:
         const ktt::DimensionVector ndRangeDimensions(m_dataSize);
         const ktt::DimensionVector workGroupDimensions;
 
-        m_pointsId = m_tuner.AddArgumentVector(m_points, ktt::ArgumentAccessType::ReadOnly);
-        m_verticesId = m_tuner.AddArgumentVector(m_vertices, ktt::ArgumentAccessType::ReadOnly);
-        m_bitmapId = m_tuner.AddArgumentVector(m_bitmap, ktt::ArgumentAccessType::WriteOnly);
-        m_dataSizeId = m_tuner.AddArgumentScalar(m_dataSize);
+        m_pointsId = m_tuner->AddArgumentVector(m_points, ktt::ArgumentAccessType::ReadOnly);
+        m_verticesId = m_tuner->AddArgumentVector(m_vertices, ktt::ArgumentAccessType::ReadOnly);
+        m_bitmapId = m_tuner->AddArgumentVector(m_bitmap, ktt::ArgumentAccessType::WriteOnly);
+        m_dataSizeId = m_tuner->AddArgumentScalar(m_dataSize);
 
         InitKernelDefault("Pnpoly", "Pnpoly", ndRangeDimensions, {m_bitmapId, m_pointsId, m_verticesId, m_dataSizeId});
     }
@@ -59,7 +75,7 @@ protected:
         const ktt::DimensionVector referenceNdRangeDimensions(m_dataSize/256);
         const ktt::DimensionVector referenceWorkGroupDimensions(256);
 
-        m_vertSizeId = m_tuner.AddArgumentScalar(m_vertSize);
+        m_vertSizeId = m_tuner->AddArgumentScalar(m_vertSize);
 
         InitReferenceKernelDefault("PnpolyReference", referenceNdRangeDimensions, referenceWorkGroupDimensions,
                                    {m_bitmapId, m_pointsId, m_verticesId, m_dataSizeId, m_vertSizeId},
@@ -69,13 +85,13 @@ protected:
     void InitTuningSpace() override
     {
         // fake tuning parameters, encoding input
-        m_tuner.AddParameter(m_kernel, "VERTICES", vector<uint64_t>{m_vertSize});
+        m_tuner->AddParameter(m_kernel, "VERTICES", vector<uint64_t>{m_vertSize});
 
         // tuning parameters
-        m_tuner.AddParameter(m_kernel, "BLOCK_SIZE_X", vector<uint64_t>{32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800, 832, 864, 896, 928, 960, 992});
-        m_tuner.AddParameter(m_kernel, "TILE_SIZE", vector<uint64_t>{1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20});
-        m_tuner.AddParameter(m_kernel, "BETWEEN_METHOD", vector<uint64_t>{0, 1, 2, 3});
-        m_tuner.AddParameter(m_kernel, "USE_METHOD", vector<uint64_t>{0, 1, 2});
+        m_tuner->AddParameter(m_kernel, "BLOCK_SIZE_X", vector<uint64_t>{32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800, 832, 864, 896, 928, 960, 992});
+        m_tuner->AddParameter(m_kernel, "TILE_SIZE", vector<uint64_t>{1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20});
+        m_tuner->AddParameter(m_kernel, "BETWEEN_METHOD", vector<uint64_t>{0, 1, 2, 3});
+        m_tuner->AddParameter(m_kernel, "USE_METHOD", vector<uint64_t>{0, 1, 2});
 
         // Add kernel dimension modifiers based on added tuning parameters
         auto globalModifier = [](const uint64_t size, const vector<uint64_t>& vector)
@@ -83,17 +99,17 @@ protected:
             return (((size+vector.at(0)-1) / vector.at(0))+vector.at(1)-1) / vector.at(1);
         };
 
-        m_tuner.AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::X, {"BLOCK_SIZE_X", "TILE_SIZE"},
+        m_tuner->AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Global, ktt::ModifierDimension::X, {"BLOCK_SIZE_X", "TILE_SIZE"},
             globalModifier);
 
-        m_tuner.AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Local, ktt::ModifierDimension::X, "BLOCK_SIZE_X", ktt::ModifierAction::Multiply);
+        m_tuner->AddThreadModifier(m_kernel, {m_definition}, ktt::ModifierType::Local, ktt::ModifierDimension::X, "BLOCK_SIZE_X", ktt::ModifierAction::Multiply);
     }
 };
 
 int main(int argc, char **argv)
 {
     unique_ptr<KernelTunerPnpoly> knpnpoly = KernelTunerPnpoly::Create<KernelTunerPnpoly>(
-        argc, argv, 20, "Examples/KernelTunerPnpoly", "KernelTunerPnpoly", "KernelTunerPnpolyReference"
+        argc, argv, "Examples/KernelTunerPnpoly", "KernelTunerPnpoly", "KernelTunerPnpolyReference"
     );
     knpnpoly->Run();
 

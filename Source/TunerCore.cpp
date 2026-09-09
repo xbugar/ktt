@@ -209,6 +209,11 @@ void TunerCore::SetReadOnlyArgumentCache(const bool flag)
     m_KernelRunner->SetReadOnlyArgumentCache(flag);
 }
 
+void TunerCore::SetWriteOnlyArgumentZero(const bool flag)
+{
+    m_KernelRunner->SetWriteOnlyArgumentZero(flag);
+}
+
 KernelResult TunerCore::RunKernel(const KernelId id, const KernelConfiguration& configuration, const KernelDimensions& dimensions,
     const std::vector<BufferOutputDescriptor>& output)
 {
@@ -319,6 +324,11 @@ uint64_t TunerCore::GetConfigurationsCount(const KernelId id) const
 KernelConfiguration TunerCore::GetBestConfiguration(const KernelId id) const
 {
     return m_TuningRunner->GetBestConfiguration(id);
+}
+
+void TunerCore::SetUseGracefulInterrupt(bool use)
+{
+    m_TuningRunner->SetUseGracefulInterrupt(use);
 }
 
 KernelConfiguration TunerCore::CreateConfiguration(const KernelId id, const ParameterInput& parameters) const
@@ -455,6 +465,16 @@ void TunerCore::SetProfilingCounters(const std::vector<std::string>& counters)
 void TunerCore::SetCompilerOptions(const std::string& options, const bool overrideDefault)
 {
     m_ComputeEngine->SetCompilerOptions(options, overrideDefault);
+}
+
+std::string TunerCore::GetCompilerOptions()
+{
+    return m_ComputeEngine->GetCompilerOptions();
+}
+
+void TunerCore::AddCompilerOptions(const std::string& options)
+{
+    m_ComputeEngine->AddCompilerOptions(options);
 }
 
 void TunerCore::SetCompiler(const std::string& compiler)
