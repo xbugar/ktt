@@ -258,6 +258,17 @@ KernelConfiguration TuningRunner::GetBestConfiguration(const KernelId id) const
     return m_ConfigurationManager->GetBestConfiguration(id);
 }
 
+size_t TuningRunner::GetConfigurationFingerprint(const Kernel& kernel) const
+{
+    const auto id = kernel.GetId();
+    if (!m_ConfigurationManager->HasData(id))
+    {
+        m_ConfigurationManager->InitializeData(kernel);
+    }
+
+    return m_ConfigurationManager->GetConfigurationFingerprint(id);
+}
+
 void TuningRunner::SetUseGracefulInterrupt(bool use)
 {
     m_useGracefulInterrupt = use;

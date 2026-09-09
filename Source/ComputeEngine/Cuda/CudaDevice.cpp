@@ -1,6 +1,7 @@
 #ifdef KTT_API_CUDA
 
 #include <cstddef>
+#include <cstdio>
 
 #include <ComputeEngine/Cuda/CudaDevice.h>
 #include <ComputeEngine/Cuda/CudaUtility.h>
@@ -32,6 +33,20 @@ DeviceInfo CudaDevice::GetInfo() const
     result.SetVendor("NVIDIA Corporation");
     result.SetExtensions("N/A");
     result.SetDeviceType(DeviceType::GPU);
+
+    // Persistent hardware identifier: the device UUID, formatted the same way as nvidia-smi ("GPU-<uuid>").
+    // cuDeviceGetUuid is available since CUDA 9.2; leave the identifier empty if the driver rejects the call.
+    CUuuid uuid;
+    if (cuDeviceGetUuid(&uuid, m_Device) == CUDA_SUCCESS)
+    {
+        const auto* bytes = reinterpret_cast<const unsigned char*>(uuid.bytes);
+        char identifier[45];
+        std::snprintf(identifier, sizeof(identifier),
+            "GPU-%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]);
+        result.SetDeviceIdentifier(identifier);
+    }
 
     size_t globalMemory;
     CheckError(cuDeviceTotalMem(&globalMemory, m_Device), "cuDeviceTotalMem");
