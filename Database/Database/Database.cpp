@@ -151,7 +151,7 @@ void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResul
 
         const auto source = SourceRepository::GetOrCreateSource(
             m_Connection,
-            {std::nullopt, tuningInfo.spaceInfo.sourceFingerprint}
+            {std::nullopt, tuningInfo.spaceInfo.sourceFingerprint, tuningInfo.spaceInfo.sourceName}
         );
 
         const auto space = SpaceRepository::GetOrCreateSpace(
@@ -159,7 +159,8 @@ void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResul
             {std::nullopt, // space Id
              *source.id,
              tuningInfo.spaceInfo.parameterFingerprint,
-             tuningInfo.spaceInfo.spaceFingerprint}
+             tuningInfo.spaceInfo.spaceFingerprint,
+             tuningInfo.spaceInfo.spaceName}
         );
 
         const auto device = DeviceRepository::GetOrCreateDevice(
@@ -329,12 +330,12 @@ size_t Database::SyncFrom(const Database &other) const
 
             const auto sourceRow = SourceRepository::GetOrCreateSource(
                 m_Connection,
-                {std::nullopt, record.sourceFingerprint}
+                {std::nullopt, record.sourceFingerprint, record.sourceName}
             );
 
             const auto space = SpaceRepository::GetOrCreateSpace(
                 m_Connection,
-                {std::nullopt, *sourceRow.id, record.parameterFingerprint, record.spaceFingerprint}
+                {std::nullopt, *sourceRow.id, record.parameterFingerprint, record.spaceFingerprint, record.spaceName}
             );
 
             const auto device = DeviceRepository::GetOrCreateDevice(

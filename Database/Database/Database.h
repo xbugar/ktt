@@ -39,6 +39,7 @@ struct SourceStats
     size_t deviceCount{}; ///< Number of unique devices used with the source.
     size_t runCount{}; ///< Total number of tuning runs for the source.
     size_t resultCount{}; ///< Total number of kernel results for the source.
+    std::optional<std::string> name{}; ///< Human-readable name of the source, if one was set when it was created.
 };
 
 /** @struct SaveOptions

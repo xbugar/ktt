@@ -47,8 +47,10 @@ struct RunSyncRecord
     size_t runId{}; ///< Database ID of the run in the originating database (used to fetch its results).
     uuid guid{}; ///< Globally unique identifier of the run, used to detect duplicates across databases.
     size_t sourceFingerprint{}; ///< Fingerprint of the owning tuning source.
+    std::optional<std::string> sourceName; ///< Name of the owning tuning source, preserved when copying the run.
     size_t parameterFingerprint{}; ///< Parameter fingerprint of the owning tuning space.
     size_t spaceFingerprint{}; ///< Space fingerprint of the owning tuning space.
+    std::optional<std::string> spaceName; ///< Name of the owning tuning space, preserved when copying the run.
     DeviceInfo deviceInfo{}; ///< Device the run was executed on.
     TunerInfo tuner{}; ///< Tuner that produced the run.
     ktt::OutputFormat outputFormat{}; ///< Output format the run's results are serialized in.

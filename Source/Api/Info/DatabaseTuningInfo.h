@@ -47,6 +47,8 @@ struct TuningSpaceInfo
     size_t parameterFingerprint{}; ///< Hash/fingerprint of tuning parameters
     size_t sourceFingerprint{}; ///< Hash/fingerprint of kernel source code
     size_t spaceFingerprint{}; ///< Hash/fingerprint of the entire tuning space configuration
+    std::optional<std::string> sourceName{}; ///< Optional human-readable name for the source. Only applied when the source is first created; an existing source keeps its name.
+    std::optional<std::string> spaceName{}; ///< Optional human-readable name for the tuning space. Only applied when the space is first created; an existing space keeps its name.
 };
 
 /** @struct TuningInfo

@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <sqlite3.h>
+#include <string>
 
 #include <Database/Database.h>
 
@@ -15,6 +16,7 @@ struct Source
 {
     std::optional<size_t> id; ///< Unique database identifier.
     size_t sourceFingerprint; ///< Hash fingerprint of the source code.
+    std::optional<std::string> name; ///< Optional human-readable name, set only when the source is first created.
 };
 
 /** @class SourceRepository

@@ -98,8 +98,8 @@ bool RunRepository::RunExists(sqlite3* connection, const uuid& guid)
 std::vector<RunSyncRecord> RunRepository::GetRuns(sqlite3* connection, size_t offset, size_t limit)
 {
     Statement statement(connection,
-        "SELECT tuning_run.id, tuning_run.guid, tuning_source.source_fingerprint, "
-        "tuning_space.parameter_fingerprint, tuning_space.space_fingerprint, "
+        "SELECT tuning_run.id, tuning_run.guid, tuning_source.source_fingerprint, tuning_source.name, "
+        "tuning_space.parameter_fingerprint, tuning_space.space_fingerprint, tuning_space.name, "
         "tuning_run.output_format_id, tuning_run.input_data, tuning_run.created_at, " +
         DeviceAndTunerColumns +
         " FROM tuning_run"
@@ -122,12 +122,14 @@ std::vector<RunSyncRecord> RunRepository::GetRuns(sqlite3* connection, size_t of
         row.runId = statement.GetSizeT(0);
         row.guid = statement.GetUuid(1);
         row.sourceFingerprint = static_cast<size_t>(std::stoull(statement.GetText(2)));
-        row.parameterFingerprint = static_cast<size_t>(std::stoull(statement.GetText(3)));
-        row.spaceFingerprint = static_cast<size_t>(std::stoull(statement.GetText(4)));
-        row.outputFormat = static_cast<ktt::OutputFormat>(statement.GetInt(5));
-        row.inputData = statement.GetOptionalText(6);
-        row.createdAt = statement.GetText(7);
-        ReadDeviceAndTunerColumns(statement, 8, row.deviceInfo, row.tuner);
+        row.sourceName = statement.GetOptionalText(3);
+        row.parameterFingerprint = static_cast<size_t>(std::stoull(statement.GetText(4)));
+        row.spaceFingerprint = static_cast<size_t>(std::stoull(statement.GetText(5)));
+        row.spaceName = statement.GetOptionalText(6);
+        row.outputFormat = static_cast<ktt::OutputFormat>(statement.GetInt(7));
+        row.inputData = statement.GetOptionalText(8);
+        row.createdAt = statement.GetText(9);
+        ReadDeviceAndTunerColumns(statement, 10, row.deviceInfo, row.tuner);
 
         runs.push_back(std::move(row));
     }

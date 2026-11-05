@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <sqlite3.h>
+#include <string>
 
 namespace ktt::db
 {
@@ -16,6 +17,7 @@ struct Space
     size_t sourceId; ///< Reference to tuning_source.
     size_t parameterFingerprint; ///< Hash of parameter configuration.
     size_t spaceFingerprint; ///< Hash of search space definition.
+    std::optional<std::string> name; ///< Optional human-readable name, set only when the space is first created.
 };
 
 /** @class SpaceRepository

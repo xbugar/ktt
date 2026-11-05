@@ -9,21 +9,22 @@ namespace ktt::db
 Source SourceRepository::CreateSource(sqlite3* connection, const Source& source)
 {
     Statement statement(connection, R"(
-        INSERT INTO tuning_source (source_fingerprint)
-        VALUES (?)
+        INSERT INTO tuning_source (source_fingerprint, name)
+        VALUES (?, ?)
     )");
 
     statement.BindText(1, std::to_string(source.sourceFingerprint));
+    statement.BindOptionalText(2, source.name);
     statement.Execute();
 
     const size_t sourceId = static_cast<size_t>(sqlite3_last_insert_rowid(connection));
-    return Source{sourceId, source.sourceFingerprint};
+    return Source{sourceId, source.sourceFingerprint, source.name};
 }
 
 std::optional<Source> SourceRepository::GetSource(sqlite3* connection, const size_t sourceFingerprint)
 {
     Statement statement(connection, R"(
-        SELECT id, source_fingerprint
+        SELECT id, source_fingerprint, name
         FROM tuning_source
         WHERE source_fingerprint = ?
         LIMIT 1
@@ -37,6 +38,7 @@ std::optional<Source> SourceRepository::GetSource(sqlite3* connection, const siz
     Source source;
     source.id = statement.GetSizeT(0);
     source.sourceFingerprint = static_cast<size_t>(std::stoull(statement.GetText(1)));
+    source.name = statement.GetOptionalText(2);
     return source;
 }
 
@@ -66,7 +68,8 @@ std::optional<SourceStats> SourceRepository::GetStatsForSource(sqlite3* connecti
                 FROM tuning_result
                 JOIN tuning_run ON tuning_run.id = tuning_result.run_id
                 JOIN tuning_space ON tuning_space.id = tuning_run.space_id
-                WHERE tuning_space.source_id = tuning_source.id) AS result_count
+                WHERE tuning_space.source_id = tuning_source.id) AS result_count,
+            tuning_source.name AS name
         FROM tuning_source
         WHERE source_fingerprint = ?
         LIMIT 1
@@ -82,6 +85,7 @@ std::optional<SourceStats> SourceRepository::GetStatsForSource(sqlite3* connecti
     stats.deviceCount = statement.GetSizeT(1);
     stats.runCount = statement.GetSizeT(2);
     stats.resultCount = statement.GetSizeT(3);
+    stats.name = statement.GetOptionalText(4);
     return stats;
 }
 
