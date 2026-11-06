@@ -37,6 +37,21 @@ const ktt::db::Database db;
 For a custom location, pass a filesystem path instead; an already-open
 `sqlite3` connection can also be adopted.
 
+Not exercised by the example: to store the results on a ktt-db server instead,
+build with `--remote-database` and open a `RemoteDatabase` with the server URL
+and an API key from the web app's settings (the key decides the realms; see
+[README.md](README.md#remote-database)). Its methods are not implemented yet.
+
+```cpp
+#include <Database/Remote/RemoteDatabase.h>
+
+const char* apiKey = std::getenv("KTT_DB_API_KEY");   // keep the key out of the source code
+const ktt::db::RemoteDatabase db("https://ktt.example.org", apiKey != nullptr ? apiKey : "");   // throws if empty
+```
+
+Both classes implement `ktt::db::IDatabase`, so a function that takes a
+`const ktt::db::IDatabase&` works with either.
+
 ### Describe the tuning problem
 
 Needed for getting and saving results. `GetDatabaseTuningInfo` produces the
@@ -171,6 +186,15 @@ From [Database/Database.h](Database/Database.h):
 | `GetBestResults(query)` | Best results with device / input-data predicates. |
 | `GetStatsForSource(sourceFingerprint)` | Aggregate counts (spaces, devices, runs, results) and the name of a source; `std::nullopt` if unknown. |
 | `SyncFrom(const Database&)` | Merge runs from another DB (path, in-memory or connection) by GUID; returns count added. |
+
+`Database` implements [Database/IDatabase.h](Database/IDatabase.h), which has
+`SaveResults`, `SimpleGetBestResults`, `GetBestResults` and `GetStatsForSource`
+(not `SyncFrom`). With `--remote-database`,
+[Database/Remote/RemoteDatabase.h](Database/Remote/RemoteDatabase.h) adds:
+
+| Method | Purpose |
+| --- | --- |
+| `RemoteDatabase(baseUrl, apiKey, options = {})` | Client for a ktt-db server; does not contact it. `RemoteDatabaseOptions` sets timeouts, retries and TLS. |
 
 ### Reading stats for a source
 

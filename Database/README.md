@@ -8,6 +8,26 @@ For hands-on, code-level usage see [Example.md](Example.md), which walks through
 
 Enable the database build option in premake5 (use the option `--database`), which defines `KTT_DATABASE` and includes the database header in the build.
 
+The remote client (`RemoteDatabase`, see [Remote database](#remote-database)) is built with `--remote-database`, which
+implies `--database`, defines `KTT_REMOTE_DATABASE` and links libcurl. A build with `--database` only does not need
+libcurl.
+
+## One interface for local and remote
+
+`Database` (SQLite) implements the interface `ktt::db::IDatabase` (`Database/IDatabase.h`), and so does
+`RemoteDatabase`. Code that only saves and reads results can take a `const ktt::db::IDatabase&` and work with either:
+
+```cpp
+void SaveRun(const ktt::db::IDatabase& db, const ktt::db::TuningInfo& info, std::vector<ktt::KernelResult> results)
+{
+    db.SaveResults(info, std::move(results));
+}
+```
+
+The interface has `SaveResults`, `SimpleGetBestResults`, `GetBestResults` and `GetStatsForSource`, with the same
+default arguments on every implementation. `SyncFrom` is on `Database` only, because it copies from one SQLite file to
+another.
+
 ## Load results and stats
 
 Open a `Database` (default location `~/.local/share/ktt/ktt.db` on Linux, or `$XDG_DATA_HOME/ktt/ktt.db` when set; `%LOCALAPPDATA%\ktt\ktt.db` on Windows) and use `GetDatabaseTuningInfo` to key queries against a tuning problem:
@@ -91,3 +111,63 @@ constructor). Indentation is useful for SQL reader apps (e.g., DBeaver) that dis
 clearly. `SaveOptions` defaults to JSON with an indent of 2; XML is also supported (indentation is ignored for XML).
 
 If you need a custom database path, construct `Database` with a filesystem path; an already-open `sqlite3` connection can also be adopted.
+
+## Remote database
+
+`ktt::db::RemoteDatabase` (`Database/Remote/RemoteDatabase.h`) stores and reads tuning results on a ktt-db server
+instead of a local file. Build KTT with `--remote-database` (see below) and include the header yourself; `Ktt.h` only
+includes the local `Database`.
+
+```cpp
+#include <Database/Remote/RemoteDatabase.h>
+
+const ktt::db::RemoteDatabase db("https://ktt.example.org", apiKey);
+```
+
+- **Server URL:** the server root with `http://` or `https://`; the client appends `/ktt-db/app/...`.
+- **API key:** create one in the web app's settings. A `read` key may only read, a `write` key may also save. **The
+  key decides the realms:** reads see what is linked to any of the key's realms, and a save links the new data to all
+  of them. There is no realm parameter. Keep the key out of source code, e.g. read it from an environment variable;
+  KTT never writes it into exception messages or logs.
+- **Construction** does not contact the server, so a wrong URL or key shows up on the first call.
+- `RemoteDatabase` is not copyable, like `Database`. Its methods are `const` and can be called from several threads
+  at once.
+
+The `IDatabase` methods of `RemoteDatabase` are not implemented yet: they throw `KttException`. They follow in the next
+step of the remote client.
+
+### Connection options
+
+`RemoteDatabaseOptions` is the optional third constructor argument:
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `connectTimeout` | 5 s | Time limit for establishing the connection (0 = none). |
+| `requestTimeout` | 60 s | Time limit for one attempt of a request (0 = none). |
+| `maxRetries` | 3 | Additional attempts after a connection error, a timeout or `502` / `503` / `504`. |
+| `verifyTls` | `true` | Verify the server certificate and host name. Turn it off only for testing. |
+| `caBundle` | none | A CA bundle (PEM file) for a server with a certificate from an internal CA. |
+
+- **Retries** wait 250 ms before the first retry and double the wait each time (up to 8 s). Other statuses (`400`,
+  `401`, `403`, `404`, `409`, `500`, ...) are never retried, and neither is a `503` that reports a query timeout,
+  because the same query would time out again. Every request the client sends can be repeated safely; a save is
+  repeated with the same run id, and the server treats it as the same run.
+- **Proxy:** libcurl takes it from the environment. `http_proxy` (for `http://` URLs) is read in lower case only;
+  libcurl ignores `HTTP_PROXY` on purpose. `https_proxy`, `all_proxy` and `no_proxy` are read in lower or upper case.
+- **Redirects** are not followed, so the key is never sent to another host.
+
+### Building with libcurl
+
+- **Linux:** install the libcurl development package (e.g. `libcurl4-openssl-dev` on Debian and Ubuntu), then
+  `premake5 gmake --remote-database`.
+- **macOS:** the system libcurl from the SDK is used.
+- **Windows (Visual Studio):** set `CURL_ROOT` to a **dynamic** libcurl installation with `include/curl/curl.h` and
+  the import library `lib/libcurl.lib` before running premake, e.g. vcpkg's `x64-windows` triplet
+  (`vcpkg install curl:x64-windows`, then `CURL_ROOT=<vcpkg>\installed\x64-windows`). The release import library is
+  linked in every configuration. Put `libcurl.dll` (and the DLLs it depends on, from the same `bin` folder) next to
+  the application. Static libcurl builds (e.g. `x64-windows-static`) and the MinGW packages from curl.se are not
+  supported by the build script.
+
+`CURL_ROOT` can also point to a custom libcurl on Linux and macOS.
+
+Only the Linux build has been tested so far; the Windows and macOS setups above have not been built yet.

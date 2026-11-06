@@ -267,6 +267,45 @@ function addSqlite()
     filter {}
 end
 
+-- Links libcurl (HTTP + TLS) for the remote database client. CURL_ROOT may point to a libcurl installation with
+-- include and lib folders. It is required on Windows, where a dynamic libcurl with the import library lib/libcurl.lib
+-- is expected (e.g. vcpkg's x64-windows triplet); static libcurl builds are not supported there. Elsewhere the system
+-- libcurl is used when CURL_ROOT is unset (Linux: the libcurl development package, macOS: the SDK).
+function linkCurl()
+    local curlRoot = os.getenv("CURL_ROOT")
+
+    if curlRoot then
+        includedirs {curlRoot .. "/include"}
+        libdirs {curlRoot .. "/lib"}
+    elseif os.target() == "windows" then
+        error("libcurl was not found. Please set CURL_ROOT to a dynamic libcurl installation (include/curl/curl.h and lib/libcurl.lib, e.g. vcpkg's installed/x64-windows) to build with --remote-database.")
+    elseif os.target() == "linux" and not os.findlib("curl") then
+        error("libcurl was not found. Please install the libcurl development package (e.g. libcurl4-openssl-dev) or set CURL_ROOT to build with --remote-database.")
+    end
+
+    if os.target() == "windows" then
+        links {"libcurl"}
+    else
+        links {"curl"}
+    end
+end
+
+-- Adds the database extension to the current project: the SQLite store (--database) and, with --remote-database,
+-- the remote client and libcurl. A SQLite-only build leaves out Database/Database/Remote and does not link libcurl.
+function addDatabase()
+    files {"Database/**"}
+    includedirs {"Database"}
+    defines {"KTT_DATABASE"}
+    addSqlite()
+
+    if _OPTIONS["remote-database"] then
+        defines {"KTT_REMOTE_DATABASE"}
+        linkCurl()
+    else
+        removefiles {"Database/Database/Remote/**"}
+    end
+end
+
 function linkAllLibraries()
     local librariesFound = linkComputeLibraries()
     
@@ -404,6 +443,17 @@ newoption
     trigger = "database",
     description = "Enables compilation of database integration"
 }
+
+newoption
+{
+    trigger = "remote-database",
+    description = "Enables compilation of the remote (ktt-db server) database client, needs libcurl; implies --database"
+}
+
+-- --remote-database implies --database
+if _OPTIONS["remote-database"] then
+    _OPTIONS["database"] = _OPTIONS["database"] or ""
+end
 
 -- Helper function to add example projects
 function addExampleProject(name, kernelExt, apiDefine, useRefVersions, shouldEnableOpenMP, isDatabase)
@@ -588,10 +638,7 @@ project "Ktt"
     }
 
     if _OPTIONS["database"] then
-        files {"Database/**"}
-        includedirs {"Database"}
-        defines {"KTT_DATABASE"}
-        addSqlite()
+        addDatabase()
     end
     
     
@@ -882,10 +929,7 @@ project "Tests"
 
     if _OPTIONS["database"] then
         -- Mirror the Ktt library project so the Tests/Database/ suite can exercise ktt::db::Database.
-        files {"Database/**"}
-        includedirs {"Database"}
-        defines {"KTT_DATABASE"}
-        addSqlite()
+        addDatabase()
     end
 
     defines {"KTT_LIBRARY", "KTT_TESTS"}
