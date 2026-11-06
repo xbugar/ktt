@@ -14,23 +14,46 @@ Open a `Database` (default location `~/.local/share/ktt/ktt.db` on Linux, or `$X
 
 - `SimpleGetBestResults` returns the fastest stored results for that tuning problem.
 - `GetBestResults` takes a `GetBestResultsQuery` with optional device and input-data predicates for fine-grained filtering.
-- `GetStatsForSource` returns aggregate counts (spaces, devices, runs, results) for a source fingerprint.
+- `GetStatsForSource` returns aggregate counts (spaces, devices, runs, results) and the name of a source, for a
+  source fingerprint.
 
 ## Save results
 
 Capture results and persist them for later runs with `SaveResults`. You can attach free-form run metadata via `TuningInfo::inputData`, which is later filterable through the input predicate of a `GetBestResultsQuery`.
 
-## Sync from another database
+## Source and space names
 
-`Sync` merges all tuning data from another `Database` into the current one. The other database may be
-constructed from a path, an in-memory database or an existing `sqlite3*` connection, and it is only read from. Runs are
-matched by their GUID, so runs that already exist are skipped — the operation is idempotent and safe to repeat. Each
-newly copied run brings along its tuning source, tuning space, device and results, and the copy runs inside a single
-transaction (a failure leaves the current database unchanged). Syncing a database from itself (the same connection, or
-the same file through any path) throws.
+A source and a tuning space are identified by their fingerprints. You can also give them a human-readable name
+through `TuningInfo::spaceInfo.sourceName` and `spaceName` (both `std::optional<std::string>`, unset by default):
 
 ```cpp
-db.Sync(ktt::db::Database(otherDatabasePath));
+auto tuningInfo = tuner.GetDatabaseTuningInfo(kernel);
+tuningInfo.spaceInfo.sourceName = "Coulomb sum 3D";
+tuningInfo.spaceInfo.spaceName = "Default search space";
+db.SaveResults(tuningInfo, results);
+```
+
+A name is stored only when the source or space is created, that is on the first save with its fingerprints. A later
+save never changes it, even when it carries a different name or none. The source name is returned in
+`SourceStats::name` by `GetStatsForSource`.
+
+The schema is not migrated. A database file written before the names existed (without the `name` columns) is not
+supported and must be recreated.
+
+## Sync from another database
+
+`SyncFrom` merges all tuning data from another `Database` into the current one. The other database may be
+constructed from a path, an in-memory database or an existing `sqlite3*` connection. `SyncFrom` only reads runs from
+it, but constructing a `Database` from a path writes to the file: it creates the file and any missing tables and
+inserts the compute API rows when they are missing, which needs write access even when nothing changes. So the other
+database's file must be writable, also when it is a backup. Runs are matched by their GUID, so runs that already
+exist are skipped — the operation is idempotent and safe to repeat. Each newly copied run brings along its tuning
+source, tuning space, device and results (the source and space names are applied only when the source or space is new
+in the current database), and the copy runs inside a single transaction (a failure leaves the current database
+unchanged). Syncing a database from itself (the same connection, or the same file through any path) throws.
+
+```cpp
+db.SyncFrom(ktt::db::Database(otherDatabasePath));
 ```
 
 ## Output format and JSON indentation

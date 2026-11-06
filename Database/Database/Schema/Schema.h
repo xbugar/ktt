@@ -18,6 +18,8 @@ public:
      * Creates the database schema if it does not already exist.
      * Creates tables for compute API, device info, device API, tuning source, tuning space,
      * tuning run, and tuning result. Also creates unique indexes and foreign key constraints.
+     * Existing tables are left as they are: a database written with an older schema version is not migrated and
+     * is not supported.
      * @param connection Pointer to the SQLite connection to execute schema creation.
      * @throw std::runtime_error If schema creation fails.
      */

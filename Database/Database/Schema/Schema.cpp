@@ -2,31 +2,10 @@
 #include <string>
 
 #include <Database/Schema/Schema.h>
-#include <Database/Utility/Statement.h>
 
 
 namespace ktt::db
 {
-
-// True when table already has a column of the given name. Table and column names are compile-time constants here, so
-// building the SQL by concatenation is safe from injection.
-static bool ColumnExists(sqlite3* connection, const std::string& table, const std::string& column)
-{
-    Statement statement(connection, "SELECT COUNT(*) FROM pragma_table_info('" + table + "') WHERE name = '" + column + "'");
-    statement.Step();
-    return statement.GetInt(0) > 0;
-}
-
-// Adds a column to an existing table when it is missing. Used to migrate databases created before a column was added
-// to the schema; on a fresh database the column already exists from the CREATE statement and this is a no-op.
-static void AddColumnIfMissing(sqlite3* connection, const std::string& table, const std::string& column, const std::string& declaration)
-{
-    if (ColumnExists(connection, table, column))
-        return;
-
-    Statement statement(connection, "ALTER TABLE " + table + " ADD COLUMN " + column + " " + declaration);
-    statement.Execute();
-}
 
 void Schema::CreateIfNotExists(sqlite3* connection)
 {
@@ -144,9 +123,5 @@ CREATE INDEX IF NOT EXISTS idx_tuning_result_run_id ON tuning_result (run_id);
         sqlite3_free(errorMsg);
         throw std::runtime_error("Failed to create table: " + error);
     }
-
-    // Migrate databases created before the source/space name columns existed. No-op on a fresh database.
-    AddColumnIfMissing(connection, "tuning_source", "name", "TEXT");
-    AddColumnIfMissing(connection, "tuning_space", "name", "TEXT");
 }
 } // namespace ktt::db
