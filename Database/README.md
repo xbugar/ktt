@@ -152,8 +152,35 @@ local `Database`, with these differences:
 | Runs without input data | Left out by an input predicate | The same. |
 | `SyncFrom` | Copies another `Database` | Not available: it is a member of `Database` only, not of `IDatabase`. |
 | Save retries | – | A save that fails with a network error or `502` / `503` / `504` is sent again with the same run id, so it is stored once. |
+| `QueryResults` | Not available | Remote only, see below. |
 
 The durations of a loaded result are read in the time unit the run was saved with, as locally.
+
+### Result query (remote only)
+
+`QueryResults` searches every result the API key can see, across sources, spaces and runs, with the same filter
+language as the web app's query page (`query.md` in the ktt-db docs). It returns one page of results, each with its
+run id, input data, device, source fingerprint and (unless `includeResult` is `false`) the stored result.
+
+```cpp
+ktt::db::ResultQuery query;
+query.filter = "device/compute_api eq 'cuda' and configuration/BLOCK_SIZE ge 32";
+query.orderBy = "duration asc";
+query.top = 100;
+
+for (const auto& item : db.QueryResults(query))
+{
+    std::cout << item.runId << " " << item.device.name << " " << item.duration << " ns" << std::endl;
+}
+```
+
+- **Paging:** `top` (default 50, at most 1000) and `skip` (at most 100000). A larger value throws without a request;
+  `top` 0 returns no results without a request. The server always adds `id asc` to the order, so pages are stable.
+- **Filter:** sent unchanged. An empty filter matches every result; an invalid one fails with the server's `400`
+  message.
+- **Durations:** `duration` and `totalDuration` are in nanoseconds; `result` is read in its run's time unit.
+- **Configuration values:** a non-negative integer is read as `uint64_t`, a negative one as `int64_t`.
+- **Timeouts:** a query the server stops after its time limit fails with `503` and is not retried; narrow the filter.
 
 ### Connection options
 

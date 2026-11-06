@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <functional>
 #include <iterator>
 #include <mutex>
 #include <set>
@@ -15,6 +16,7 @@
 #include <Database/Remote/Http/CurlHttpClient.h>
 #include <Database/Remote/RemoteClient.h>
 #include <Database/Remote/RemoteDatabase.h>
+#include <Database/Remote/RemoteDatabaseShared.h>
 #include <Database/Remote/WireFormat.h>
 #include <Database/Repository/Utility.h>
 #include <Database/Utility/TimeUnitGuard.h>
@@ -592,5 +594,32 @@ std::optional<SourceStats> RemoteDatabase::GetStatsForSource(const size_t source
         return stats;
     });
 }
+
+// The helpers above, for the other RemoteDatabase*.cpp files (RemoteDatabaseShared.h).
+namespace remote
+{
+
+std::optional<json> CallServer(const RemoteClient &client, const std::string &operation, const std::string_view method,
+    const std::string &path, const json *body, const bool notFoundIsEmpty)
+{
+    return Call(client, operation, method, path, body, notFoundIsEmpty);
+}
+
+void RunTranslated(const std::string &operation, const RemoteClient &client, const std::function<void()> &function)
+{
+    Translate(operation, client, function);
+}
+
+DeviceInfo ReadDevice(const json &device)
+{
+    return DeviceFromWire(device);
+}
+
+OutputFormat ReadOutputFormat(const std::string &name)
+{
+    return OutputFormatFromWire(name);
+}
+
+} // namespace remote
 
 } // namespace ktt::db
