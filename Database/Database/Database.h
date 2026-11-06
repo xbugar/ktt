@@ -1,13 +1,11 @@
 #pragma once
 #include <KttPlatform.h>
 #include <filesystem>
-#include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
-#include <Api/Info/DatabaseTuningInfo.h>
-#include <Api/Output/KernelResult.h>
-#include <Output/OutputFormat.h>
+#include <Database/IDatabase.h>
 
 struct sqlite3;
 
@@ -17,46 +15,12 @@ struct sqlite3;
 namespace ktt::db
 {
 
-struct DeviceInfo;
-struct TuningInfo;
-struct TuningSpaceInfo;
-
-
-struct GetBestResultsQuery
-{
-    const TuningSpaceInfo &source;
-    std::optional<std::function<bool(const DeviceInfo &)>> devicePredicate;
-    std::optional<std::function<bool(const std::string &)>> inputPredicate;
-    uint32_t limit{50};
-};
-
-/** @struct SourceStats
- * Holds aggregate statistics for a tuning source.
- */
-struct SourceStats
-{
-    size_t spaceCount{}; ///< Number of tuning spaces for the source.
-    size_t deviceCount{}; ///< Number of unique devices used with the source.
-    size_t runCount{}; ///< Total number of tuning runs for the source.
-    size_t resultCount{}; ///< Total number of kernel results for the source.
-    std::optional<std::string> name{}; ///< Human-readable name of the source, if one was set when it was created.
-};
-
-/** @struct SaveOptions
- * Options controlling how kernel results are serialized when saved.
- */
-struct SaveOptions
-{
-    ktt::OutputFormat format{ktt::OutputFormat::JSON}; ///< Output format used to serialize stored results.
-    int indent{2}; ///< Indentation level applied to JSON output (ignored for XML).
-};
-
 /** @class Database
  * Manages storage and retrieval of kernel tuning results in a SQLite database.
  * Provides functionality to save execution results, query best performing configurations,
- * and retrieve statistics about tuning sources.
+ * and retrieve statistics about tuning sources. Implements IDatabase; SyncFrom is local only.
  */
-class KTT_API Database
+class KTT_API Database : public IDatabase
 {
 
 public:
@@ -93,7 +57,7 @@ public:
     /** @fn ~Database()
      * Destructor that closes the database connection and releases resources.
      */
-    ~Database();
+    ~Database() override;
 
     // Disable copy
     Database(const Database &) = delete;
@@ -111,7 +75,8 @@ public:
      * @param options Output format and JSON indentation used to serialize the results.
      *                Defaults to JSON with an indentation of 2.
      */
-    void SaveResults(const TuningInfo &source, std::vector<KernelResult> results, SaveOptions options = {}) const;
+    void SaveResults(const TuningInfo &source, std::vector<KernelResult> results,
+        SaveOptions options = {}) const override;
 
     /** @fn std::vector<KernelResult> SimpleGetBestResults(const TuningInfo& source, uint32_t limit = 50) const
      * Retrieves the best (fastest) kernel results for a given tuning source and configuration.
@@ -128,7 +93,7 @@ public:
      *         KernelResult::GetKernelDuration when the result was saved), fastest first. For JSON_T4 results the
      *         loaded GetKernelDuration is the original total duration, because that format keeps only the total.
      */
-    std::vector<KernelResult> SimpleGetBestResults(const TuningInfo &source, uint32_t limit = 50) const;
+    std::vector<KernelResult> SimpleGetBestResults(const TuningInfo &source, uint32_t limit = 50) const override;
 
     /** @fn std::vector<KernelResult> GetBestResults(const GetBestResultsQuery& query) const
      * Retrieves the best kernel results using advanced query filters and predicates.
@@ -142,7 +107,7 @@ public:
      * @return Vector of KernelResult objects sorted by the stored kernel duration (fastest first), limited to the
      *         specified count.
      */
-    std::vector<KernelResult> GetBestResults(const GetBestResultsQuery &query) const;
+    std::vector<KernelResult> GetBestResults(const GetBestResultsQuery &query) const override;
 
     /** @fn std::optional<SourceStats> GetStatsForSource(size_t sourceFingerprint) const
      * Retrieves statistical information for a given tuning source.
@@ -152,7 +117,7 @@ public:
      * @return Optional SourceStats containing counts and the name (std::nullopt when the source has none), or
      *         std::nullopt if source not found.
      */
-    std::optional<SourceStats> GetStatsForSource(size_t sourceFingerprint) const;
+    std::optional<SourceStats> GetStatsForSource(size_t sourceFingerprint) const override;
 
     /** @fn size_t SyncFrom(const Database& other) const
      * Copies all tuning data from another Database into this database.
