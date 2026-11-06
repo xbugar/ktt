@@ -68,6 +68,7 @@ erDiagram
         INTEGER device_id FK "NOT NULL"
         INTEGER tuner_id FK "NOT NULL"
         INTEGER output_format_id FK "NOT NULL"
+        TEXT time_unit "NOT NULL CHECK"
         TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
         TEXT input_data "nullable"
     }
@@ -126,7 +127,14 @@ erDiagram
   `ktt::db::TuningSpaceInfo::sourceName` / `spaceName`. A name is stored only when the row is created; a later save
   with the same fingerprints never changes it. The schema is not migrated: a database file written before these
   columns existed is not supported and must be recreated.
+- `tuning_run.time_unit` is the KTT time unit (`TimeConfiguration`, set by `Tuner::SetTimeUnit`) that was active
+  when the run was saved: one of `nanoseconds`, `microseconds`, `milliseconds`, `seconds` (enforced by a `CHECK`
+  constraint; the same lowercase names the ktt-db server uses). The durations inside the serialized
+  `tuning_result.result` texts are in this unit, and loading a result deserializes it with this unit, whatever unit
+  is active at load time. `tuning_result.duration` is the kernel duration in nanoseconds, independent of the time
+  unit, and orders the best results. The schema is not migrated: a database file written before this column existed
+  is not supported and must be recreated.
 - A `tuning_run` is uniquely identified across databases by its `guid`, which is what
   `SyncFrom` uses to skip already-imported runs.
-- `SyncFrom` copies each run together with its `device` (including device identifier and driver version), `tuner`,
-  and the names of its source and space (applied only when the source or space is new in the target).
+- `SyncFrom` copies each run together with its time unit, its `device` (including device identifier and driver
+  version), `tuner`, and the names of its source and space (applied only when the source or space is new in the target).

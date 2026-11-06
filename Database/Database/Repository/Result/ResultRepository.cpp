@@ -1,6 +1,7 @@
 #include <Database/Repository/Result/ResultRepository.h>
 #include <Database/Repository/Utility.h>
 #include <Database/Utility/Statement.h>
+#include <Database/Utility/TimeUnitGuard.h>
 #include <Output/OutputFormat.h>
 
 namespace ktt::db
@@ -36,8 +37,10 @@ std::vector<KernelResult> ResultRepository::SimpleGetBestResults(
     sqlite3* connection, size_t spaceId, const Device& device, uint32_t limit
 )
 {
+    // A run's device matches when it is the same model (name, vendor and type), or, for CUDA only, when it has the
+    // same compute capability major and a minor within +-1. Other compute APIs match by model only.
     Statement statement(connection, R"(
-        SELECT tuning_result.result, tuning_run.output_format_id
+        SELECT tuning_result.result, tuning_run.output_format_id, tuning_run.time_unit
         FROM tuning_result
         JOIN tuning_run ON tuning_run.id = tuning_result.run_id
         JOIN device ON device.id = tuning_run.device_id
@@ -47,47 +50,42 @@ std::vector<KernelResult> ResultRepository::SimpleGetBestResults(
             AND ((device_info.name = ?
                     AND device_info.vendor = ?
                     AND device_info.type = ?)
-                OR (device_api.compute_api_id = ?
+                OR (? = 1
+                    AND device_api.compute_api_id = ?
                     AND device_api.version_major = ?
-                    AND (device_api.version_minor = ? OR device_api.version_minor BETWEEN ? AND ?)
-                    AND device_api.extensions = ?))
+                    AND device_api.version_minor BETWEEN ? AND ?))
         ORDER BY tuning_result.duration ASC
         LIMIT ?
     )");
 
-    std::optional<int> minorLow;
-    std::optional<int> minorHigh;
-    if (device.computeApi == ComputeApi::CUDA && device.cudaComputeCapabilityMinor)
-    {
-        minorLow = *device.cudaComputeCapabilityMinor - 1;
-        minorHigh = *device.cudaComputeCapabilityMinor + 1;
-    }
+    const bool isCuda = device.computeApi == ComputeApi::CUDA && device.cudaComputeCapabilityMajor.has_value()
+        && device.cudaComputeCapabilityMinor.has_value();
+    const int major = device.cudaComputeCapabilityMajor.value_or(NoCudaComputeCapability);
+    const int minor = device.cudaComputeCapabilityMinor.value_or(NoCudaComputeCapability);
 
     statement.BindInt64(1, static_cast<int64_t>(spaceId));
     statement.BindText(2, device.name);
     statement.BindText(3, device.vendor);
     statement.BindText(4, device.type);
-    statement.BindInt(5, static_cast<int>(device.computeApi));
-    // Unset values are stored as placeholders instead of NULL (see DeviceRepository.h). The BETWEEN bounds stay NULL
-    // for non-CUDA devices, which makes that alternative never match.
-    statement.BindInt(6, device.cudaComputeCapabilityMajor.value_or(NoCudaComputeCapability));
-    statement.BindInt(7, device.cudaComputeCapabilityMinor.value_or(NoCudaComputeCapability));
-    statement.BindOptionalInt(8, minorLow);
-    statement.BindOptionalInt(9, minorHigh);
-    statement.BindText(10, device.extensions.value_or(NoText));
-    statement.BindInt(11, static_cast<int>(limit));
+    statement.BindInt(5, isCuda ? 1 : 0);
+    statement.BindInt(6, static_cast<int>(ComputeApi::CUDA));
+    statement.BindInt(7, major);
+    statement.BindInt(8, minor - 1);
+    statement.BindInt(9, minor + 1);
+    statement.BindInt(10, static_cast<int>(limit));
 
     std::vector<KernelResult> results;
     while (statement.Step())
     {
         const auto format = static_cast<ktt::OutputFormat>(statement.GetInt(1));
-        results.push_back(DatabaseUtility::DeserializeResult(statement.GetText(0), format));
+        const auto timeUnit = TimeUnitFromName(statement.GetText(2));
+        results.push_back(DatabaseUtility::DeserializeResult(statement.GetText(0), format, timeUnit));
     }
 
     return results;
 }
 
-std::vector<KernelResult> ResultRepository::ResultsByRunIds(
+std::vector<StoredResult> ResultRepository::ResultsByRunIds(
     sqlite3* connection, const std::vector<size_t>& runIds, uint32_t limit
 )
 {
@@ -95,7 +93,8 @@ std::vector<KernelResult> ResultRepository::ResultsByRunIds(
         return {};
 
     Statement statement(connection,
-        "SELECT tuning_result.result, tuning_run.output_format_id FROM tuning_result "
+        "SELECT tuning_result.result, tuning_run.output_format_id, tuning_run.time_unit, tuning_result.duration "
+        "FROM tuning_result "
         "JOIN tuning_run ON tuning_run.id = tuning_result.run_id "
         "WHERE tuning_result.run_id IN " +
         DatabaseUtility::SqlList(runIds.size()) + " ORDER BY tuning_result.duration ASC LIMIT ?");
@@ -108,11 +107,13 @@ std::vector<KernelResult> ResultRepository::ResultsByRunIds(
     }
     statement.BindInt(bindIndex, static_cast<int>(limit));
 
-    std::vector<KernelResult> results;
+    std::vector<StoredResult> results;
     while (statement.Step())
     {
         const auto format = static_cast<ktt::OutputFormat>(statement.GetInt(1));
-        results.push_back(DatabaseUtility::DeserializeResult(statement.GetText(0), format));
+        const auto timeUnit = TimeUnitFromName(statement.GetText(2));
+        results.push_back(
+            {statement.GetInt64(3), DatabaseUtility::DeserializeResult(statement.GetText(0), format, timeUnit)});
     }
 
     return results;

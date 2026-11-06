@@ -8,6 +8,8 @@
 #include <Api/Info/DatabaseTuningInfo.h>
 #include <Database/Utility/Uuid.h>
 #include <Output/OutputFormat.h>
+#include <Output/TimeConfiguration/TimeConfiguration.h>
+#include <Output/TimeConfiguration/TimeUnit.h>
 
 namespace ktt::db
 {
@@ -23,6 +25,9 @@ struct Run
     size_t tunerId; ///< Reference to tuner.
     ktt::OutputFormat outputFormat{}; ///< Output format used for the run.
     std::optional<std::string> inputData; ///< Optional input data for the run.
+    /// Time unit the durations inside the run's serialized results are written in. Defaults to the unit active in KTT
+    /// when the Run is constructed, which is the unit SaveResults serializes with.
+    ktt::TimeUnit timeUnit = ktt::TimeConfiguration::GetInstance().GetTimeUnit();
 };
 
 /** @struct RunQueryResult
@@ -56,6 +61,9 @@ struct RunSyncRecord
     ktt::OutputFormat outputFormat{}; ///< Output format the run's results are serialized in.
     std::optional<std::string> inputData; ///< Optional input data associated with the run.
     std::string createdAt; ///< Original creation timestamp, preserved when copying the run.
+    /// Time unit of the durations inside the run's serialized results (tuning_run.time_unit). GetRuns always sets it
+    /// from the stored column; the default is the unit active in KTT, as for Run::timeUnit.
+    ktt::TimeUnit timeUnit = ktt::TimeConfiguration::GetInstance().GetTimeUnit();
 };
 
 /** @class RunRepository
@@ -66,7 +74,8 @@ class RunRepository
 {
 public:
     /** @fn static size_t CreateRun(sqlite3* connection, const Run& run)
-     * Creates a new run record in the database.
+     * Creates a new run record in the database, with a new random GUID. Run::timeUnit is stored in
+     * tuning_run.time_unit and must be the unit the run's results are serialized with.
      * @param connection SQLite database connection.
      * @param run Run information to insert.
      * @return Database ID of the newly created run.
@@ -76,7 +85,8 @@ public:
 
     /** @fn static size_t CreateRunWithGuid(sqlite3* connection, const Run& run, const uuid& guid, const std::string&
      * createdAt) Creates a new run record using a caller-supplied GUID and creation timestamp instead of generating
-     * them. Used when copying a run from another database so its identity and creation time are preserved.
+     * them. Used when copying a run from another database so its identity and creation time are preserved. The copied
+     * run's Run::timeUnit must be the original run's unit, because its results are copied without re-serializing.
      * @param connection SQLite database connection.
      * @param run Run information to insert.
      * @param guid GUID to store for the run (preserved from the originating database).
