@@ -36,6 +36,7 @@
 #include <Api/Configuration/KernelConfiguration.h>
 #include <Api/Info/DeviceInfo.h>
 #include <Api/Info/PlatformInfo.h>
+#include <Api/Info/DatabaseTuningInfo.h>
 #include <Api/Output/BufferOutputDescriptor.h>
 #include <Api/Output/KernelResult.h>
 
@@ -941,6 +942,29 @@ public:
       * @return Kernel definition source with preprocessor definitions for the specified kernel based on provided configuration.
       */
     std::string GetKernelDefinitionSource(const KernelDefinitionId id, const KernelConfiguration& configuration) const;
+
+    /** @fn ktt::db::TuningInfo GetDatabaseTuningInfo(const KernelId id) const
+      * Collects the information about a kernel and the current device that is needed to save or query its tuning
+      * results in the KTT database. Computes the fingerprints identifying the kernel's tuning space (kernel source,
+      * tuning parameters and the whole configuration space) and captures the properties of the currently active
+      * device (name, type, vendor, compute API and API-specific details such as OpenCL/Vulkan extensions or CUDA
+      * compute capability). The returned value is the descriptor passed to the ktt::db::Database methods, e.g.
+      * SaveResults, SimpleGetBestResults or GetBestResults. The inputData field is left empty and may be filled in
+      * by the caller before saving.
+      * @param id Id of kernel for which the tuning information is collected.
+      * @return TuningInfo holding the tuning space fingerprints and current device info for the specified kernel.
+      * See ktt::db::TuningInfo for more information.
+      */
+    ktt::db::TuningInfo GetDatabaseTuningInfo(const KernelId id) const;
+
+    /** @fn std::vector<ktt::db::SourceDefinition> GetKernelSources(const KernelId id) const
+      * Returns the name and source code of each definition of a kernel, in the order of the kernel's definitions.
+      * These are exactly the sources the source fingerprint returned by GetDatabaseTuningInfo is computed from, so
+      * they can be uploaded to a ktt-db server with ktt::db::RemoteDatabase::SaveSourceCode.
+      * @param id Id of kernel whose definitions are returned.
+      * @return Name and source of each kernel definition. Empty if the kernel does not exist (the error is logged).
+      */
+    std::vector<ktt::db::SourceDefinition> GetKernelSources(const KernelId id) const;
 
     /** @fn static void SetTimeUnit(const TimeUnit unit)
       * Sets time unit used for printing of results. Default time unit is milliseconds.
