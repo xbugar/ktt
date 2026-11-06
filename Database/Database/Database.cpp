@@ -18,6 +18,7 @@
 #include <Database/Repository/Space/SpaceRepository.h>
 #include <Database/Repository/Tuner/TunerRepository.h>
 #include <Database/Schema/Schema.h>
+#include <Database/Utility/TimeUnitGuard.h>
 #include <Database/Utility/TransactionGuard.h>
 #include <Database/Utility/TuningInfoValidation.h>
 #include <Output/OutputFormat.h>
@@ -151,6 +152,10 @@ void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResul
 
     try
     {
+        // The run records the current time unit and its results are serialized in it. The lock keeps other database
+        // threads from switching the unit meanwhile. A reader can hold an SQLite lock while it waits for this one, but
+        // no busy timeout is set, so SQLite answers this save with SQLITE_BUSY rather than waiting: no deadlock.
+        const auto lock = LockTimeUnit();
         TransactionGuard transaction(m_Connection);
 
         const auto source = SourceRepository::GetOrCreateSource(

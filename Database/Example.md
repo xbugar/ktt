@@ -40,7 +40,9 @@ For a custom location, pass a filesystem path instead; an already-open
 Not exercised by the example: to store the results on a ktt-db server instead,
 build with `--remote-database` and open a `RemoteDatabase` with the server URL
 and an API key from the web app's settings (the key decides the realms; see
-[README.md](README.md#remote-database)). Its methods are not implemented yet.
+[README.md](README.md#remote-database)). The rest of the example works the same
+with it, apart from the differences listed there (for example, `SyncFrom` is
+local only, and a limit above 1000 throws).
 
 ```cpp
 #include <Database/Remote/RemoteDatabase.h>
@@ -195,6 +197,7 @@ From [Database/Database.h](Database/Database.h):
 | Method | Purpose |
 | --- | --- |
 | `RemoteDatabase(baseUrl, apiKey, options = {})` | Client for a ktt-db server; does not contact it. `RemoteDatabaseOptions` sets timeouts, retries and TLS. |
+| `SaveResults`, `SimpleGetBestResults`, `GetBestResults`, `GetStatsForSource` | As for `Database`, on the server; the differences are listed in [README.md](README.md#remote-database). |
 
 ### Reading stats for a source
 
