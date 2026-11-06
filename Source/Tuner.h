@@ -957,6 +957,15 @@ public:
       */
     ktt::db::TuningInfo GetDatabaseTuningInfo(const KernelId id) const;
 
+    /** @fn std::vector<ktt::db::SourceDefinition> GetKernelSources(const KernelId id) const
+      * Returns the name and source code of each definition of a kernel, in the order of the kernel's definitions.
+      * These are exactly the sources the source fingerprint returned by GetDatabaseTuningInfo is computed from, so
+      * they can be uploaded to a ktt-db server with ktt::db::RemoteDatabase::SaveSourceCode.
+      * @param id Id of kernel whose definitions are returned.
+      * @return Name and source of each kernel definition. Empty if the kernel does not exist (the error is logged).
+      */
+    std::vector<ktt::db::SourceDefinition> GetKernelSources(const KernelId id) const;
+
     /** @fn static void SetTimeUnit(const TimeUnit unit)
       * Sets time unit used for printing of results. Default time unit is milliseconds.
       * @param unit Time unit which will be used for printing of results. See ::TimeUnit for more information.

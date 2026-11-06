@@ -109,6 +109,7 @@ public:
     std::string GetKernelDefinitionSource(const KernelDefinitionId id, const KernelConfiguration& configuration) const;
     KernelResult GetBestResult(const std::vector<KernelResult>& results) const;
     ktt::db::TuningInfo GetDatabaseTuningInfo(const KernelId id) const;
+    std::vector<ktt::db::SourceDefinition> GetKernelSources(const KernelId id) const;
 
     // Result printing
     static void SetTimeUnit(const TimeUnit unit);

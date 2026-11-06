@@ -152,6 +152,7 @@ local `Database`, with these differences:
 | Runs without input data | Left out by an input predicate | The same. |
 | `SyncFrom` | Copies another `Database` | Not available: it is a member of `Database` only, not of `IDatabase`. |
 | Save retries | – | A save that fails with a network error or `502` / `503` / `504` is sent again with the same run id, so it is stored once. |
+| Kernel source code | Not stored | `SaveSourceCode` uploads it, by hand or after each save (see [Kernel source code](#kernel-source-code)). |
 
 The durations of a loaded result are read in the time unit the run was saved with, as locally.
 
@@ -166,6 +167,7 @@ The durations of a loaded result are read in the time unit the run was saved wit
 | `maxRetries` | 3 | Additional attempts after a connection error, a timeout or `502` / `503` / `504`. |
 | `verifyTls` | `true` | Verify the server certificate and host name. Turn it off only for testing. |
 | `caBundle` | none | A CA bundle (PEM file) for a server with a certificate from an internal CA. |
+| `sourceCodeProvider` | none | Supplies the kernel source code that `SaveResults` uploads when the server has none (see [Kernel source code](#kernel-source-code)). |
 
 - **Retries** wait 250 ms before the first retry and double the wait each time (up to 8 s). Other statuses (`400`,
   `401`, `403`, `404`, `409`, `500`, ...) are never retried, and neither is a `503` that reports a query timeout,
@@ -190,3 +192,37 @@ The durations of a loaded result are read in the time unit the run was saved wit
 `CURL_ROOT` can also point to a custom libcurl on Linux and macOS.
 
 Only the Linux build has been tested so far; the Windows and macOS setups above have not been built yet.
+
+### Kernel source code
+
+The web app shows the source code of a kernel only when it was uploaded. `SaveSourceCode` uploads it, and
+`Tuner::GetKernelSources` returns it, exactly as KTT holds it:
+
+```cpp
+db.SaveResults(tuningInfo, results);
+db.SaveSourceCode(tuningInfo.spaceInfo.sourceFingerprint, tuner.GetKernelSources(kernel));
+```
+
+- **Upload once per source.** The server keeps one copy of the code per source fingerprint, for every realm, and
+  never changes it. `SaveSourceCode` returns `true` when it stored the code and `false` when the server already had
+  it (also when only the names differ). A run of the source must be saved first; otherwise the server answers `404`
+  and `SaveSourceCode` throws.
+- **The code must match the fingerprint.** Pass the kernel's definitions unchanged and in their order. The client
+  recomputes the source fingerprint and throws before sending anything if it differs; the server checks it again.
+  The sources are sent byte for byte (line endings and whitespace included); the names are informational.
+- **Limits**, checked before the request: 1 to 32 definitions, each source at most 1 MiB and all of them at most
+  4 MiB, each name at most 1 KiB (UTF-8 bytes), valid UTF-8 without the character U+0000, and a request body of at
+  most 5 MiB with its JSON escaping.
+- **Automatically after a save:** with `RemoteDatabaseOptions::sourceCodeProvider` set, `SaveResults` uploads the
+  code when the server answers that it has none for the saved source. `MakeSourceCodeProvider(tuner, kernels)`
+  makes a provider that serves the given kernels of a tuner (the tuner must outlive the database). A failed upload
+  only logs a warning: the results are saved either way.
+
+```cpp
+ktt::db::RemoteDatabaseOptions options;
+options.sourceCodeProvider = ktt::db::MakeSourceCodeProvider(tuner, {kernel});
+const ktt::db::RemoteDatabase db("https://ktt.example.org", apiKey, options);
+```
+
+The test vectors of the source fingerprint, which the server computes the same way, are in
+[Tests/Database/SourceFingerprintVectors.json](../Tests/Database/SourceFingerprintVectors.json).

@@ -785,6 +785,19 @@ ktt::db::TuningInfo Tuner::GetDatabaseTuningInfo(const KernelId id) const
     }
 }
 
+std::vector<ktt::db::SourceDefinition> Tuner::GetKernelSources(const KernelId id) const
+{
+    try
+    {
+        return m_Tuner->GetKernelSources(id);
+    }
+    catch (const KttException& exception)
+    {
+        TunerCore::Log(LoggingLevel::Error, exception.what());
+        return {};
+    }
+}
+
 void Tuner::SetTimeUnit(const TimeUnit unit)
 {
     TunerCore::SetTimeUnit(unit);
