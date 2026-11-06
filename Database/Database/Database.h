@@ -103,7 +103,9 @@ public:
      * const Saves kernel execution results for a specific tuning source and configuration. Stores results in the
      * database, organizing them by source fingerprint, tuning space, device, and run information. Creates new records
      * in the database schema if they don't exist. The source and space names in TuningInfo::spaceInfo are stored only
-     * when the source or space is created; an existing source or space keeps its name.
+     * when the source or space is created; an existing source or space keeps its name. The results are serialized with
+     * KTT's current time unit (Tuner::SetTimeUnit), and the run stores that unit, so the results load back with the
+     * same durations after the time unit has changed.
      * @param source The TuningInfo containing source fingerprint, space info, device info, and input data.
      * @param results Vector of KernelResult objects containing execution data to be stored.
      * @param options Output format and JSON indentation used to serialize the results.
@@ -113,20 +115,32 @@ public:
 
     /** @fn std::vector<KernelResult> SimpleGetBestResults(const TuningInfo& source, uint32_t limit = 50) const
      * Retrieves the best (fastest) kernel results for a given tuning source and configuration.
-     * Queries the database for the best execution results matching the specified source and device.
+     * Queries the database for the best execution results matching the specified source and device. A stored run's
+     * device matches when it is the same model (name, vendor and type), or, for CUDA only, when it has the same compute
+     * capability major and a minor within +-1. Other compute APIs (OpenCL, Vulkan, C++) match by model only. Input data
+     * is not used for filtering.
+     * Each result is deserialized with the time unit stored on its run, as SaveResults describes. While a result is
+     * deserialized, KTT's global time unit is switched to that unit and then restored, so this method is not
+     * thread-safe with respect to other code that reads or sets the time unit.
      * @param source The TuningInfo containing source fingerprint, space info, and device info to search for.
      * @param limit Maximum number of results to return. Default is 50.
-     * @return Vector of KernelResult objects sorted by execution time (fastest first).
+     * @return Vector of KernelResult objects sorted by the kernel duration stored at save time (tuning_result.duration,
+     *         KernelResult::GetKernelDuration when the result was saved), fastest first. For JSON_T4 results the
+     *         loaded GetKernelDuration is the original total duration, because that format keeps only the total.
      */
     std::vector<KernelResult> SimpleGetBestResults(const TuningInfo &source, uint32_t limit = 50) const;
 
     /** @fn std::vector<KernelResult> GetBestResults(const GetBestResultsQuery& query) const
      * Retrieves the best kernel results using advanced query filters and predicates.
      * Allows complex queries with device and string (input data) predicates for fine-grained filtering.
-     * Results are paginated internally and sorted by execution time.
+     * Runs are paginated internally, and the best results of each page are merged by the kernel duration stored at
+     * save time (tuning_result.duration), the same key SimpleGetBestResults orders by; equal durations keep the order
+     * of the pages. Results are deserialized with the time unit stored on their run, with the same thread-safety caveat
+     * as SimpleGetBestResults.
      * @param query A GetBestResultsQuery struct containing source info, optional device and string predicates,
      *              and a result limit.
-     * @return Vector of KernelResult objects sorted by execution time, limited to the specified count.
+     * @return Vector of KernelResult objects sorted by the stored kernel duration (fastest first), limited to the
+     *         specified count.
      */
     std::vector<KernelResult> GetBestResults(const GetBestResultsQuery &query) const;
 
@@ -143,13 +157,13 @@ public:
     /** @fn size_t SyncFrom(const Database& other) const
      * Copies all tuning data from another Database into this database.
      * Every run the other database contains is copied over, together with its tuning source, tuning space, device
-     * and results. Source and space names are copied with them, but only applied when the source or space is new
-     * in this database. The other Database may have been constructed from a path, an in-memory database or an existing
-     * connection. SyncFrom only reads runs from it, but constructing it from a path writes to the file (it creates
-     * the schema when missing), so that file must be writable (see Database(std::filesystem::path)). Runs are
-     * matched by their GUID, so runs that already exist in this database are skipped; this makes the operation
-     * idempotent and safe to repeat. The copy runs inside a single transaction, so a failure leaves this database
-     * unchanged.
+     * and results. The results are copied verbatim, together with the run's stored time unit. Source and space names
+     * are copied with them, but only applied when the source or space is new in this database. The other Database may
+     * have been constructed from a path, an in-memory database or an existing connection. SyncFrom only reads runs
+     * from it, but constructing it from a path writes to the file (it creates the schema when missing), so that file
+     * must be writable (see Database(std::filesystem::path)). Runs are matched by their GUID, so runs that already
+     * exist in this database are skipped; this makes the operation idempotent and safe to repeat. The copy runs inside
+     * a single transaction, so a failure leaves this database unchanged.
      * @param other The Database to sync data from.
      * @return Number of runs newly added to this database.
      * @throw KttException If other is this database (or operates on the same file), or the sync fails.

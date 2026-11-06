@@ -3,6 +3,7 @@
 #include <Database/Repository/Device/DeviceRepository.h>
 #include <Database/Repository/Run/RunRepository.h>
 #include <Database/Utility/Statement.h>
+#include <Database/Utility/TimeUnitGuard.h>
 #include <Database/Utility/Uuid.h>
 
 namespace ktt::db
@@ -49,8 +50,8 @@ static void ReadDeviceAndTunerColumns(const Statement& statement, const int firs
 size_t RunRepository::CreateRun(sqlite3* connection, const Run& run)
 {
     Statement statement(connection, R"(
-        INSERT INTO tuning_run (guid, space_id, device_id, tuner_id, output_format_id, input_data)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO tuning_run (guid, space_id, device_id, tuner_id, output_format_id, input_data, time_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     )");
 
     statement.BindUuid(1, UuidGenerator::GenerateUuid());
@@ -59,6 +60,7 @@ size_t RunRepository::CreateRun(sqlite3* connection, const Run& run)
     statement.BindInt64(4, static_cast<int64_t>(run.tunerId));
     statement.BindInt(5, static_cast<int>(run.outputFormat));
     statement.BindOptionalText(6, run.inputData);
+    statement.BindText(7, TimeUnitToName(run.timeUnit));
     statement.Execute();
 
     return sqlite3_last_insert_rowid(connection);
@@ -69,8 +71,8 @@ size_t RunRepository::CreateRunWithGuid(
 )
 {
     Statement statement(connection, R"(
-        INSERT INTO tuning_run (guid, space_id, device_id, tuner_id, output_format_id, input_data, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO tuning_run (guid, space_id, device_id, tuner_id, output_format_id, input_data, created_at, time_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     )");
 
     statement.BindUuid(1, guid);
@@ -80,6 +82,7 @@ size_t RunRepository::CreateRunWithGuid(
     statement.BindInt(5, static_cast<int>(run.outputFormat));
     statement.BindOptionalText(6, run.inputData);
     statement.BindText(7, createdAt);
+    statement.BindText(8, TimeUnitToName(run.timeUnit));
     statement.Execute();
 
     return sqlite3_last_insert_rowid(connection);
@@ -100,7 +103,7 @@ std::vector<RunSyncRecord> RunRepository::GetRuns(sqlite3* connection, size_t of
     Statement statement(connection,
         "SELECT tuning_run.id, tuning_run.guid, tuning_source.source_fingerprint, tuning_source.name, "
         "tuning_space.parameter_fingerprint, tuning_space.space_fingerprint, tuning_space.name, "
-        "tuning_run.output_format_id, tuning_run.input_data, tuning_run.created_at, " +
+        "tuning_run.output_format_id, tuning_run.input_data, tuning_run.created_at, tuning_run.time_unit, " +
         DeviceAndTunerColumns +
         " FROM tuning_run"
         " JOIN tuning_space ON tuning_space.id = tuning_run.space_id"
@@ -129,7 +132,8 @@ std::vector<RunSyncRecord> RunRepository::GetRuns(sqlite3* connection, size_t of
         row.outputFormat = static_cast<ktt::OutputFormat>(statement.GetInt(7));
         row.inputData = statement.GetOptionalText(8);
         row.createdAt = statement.GetText(9);
-        ReadDeviceAndTunerColumns(statement, 10, row.deviceInfo, row.tuner);
+        row.timeUnit = TimeUnitFromName(statement.GetText(10));
+        ReadDeviceAndTunerColumns(statement, 11, row.deviceInfo, row.tuner);
 
         runs.push_back(std::move(row));
     }

@@ -1,5 +1,8 @@
+#include <algorithm>
+#include <cstddef>
 #include <cstdlib>
 #include <filesystem>
+#include <iterator>
 #include <optional>
 #include <sqlite3.h>
 #include <string>
@@ -18,6 +21,7 @@
 #include <Database/Utility/TransactionGuard.h>
 #include <Database/Utility/TuningInfoValidation.h>
 #include <Output/OutputFormat.h>
+#include <Output/TimeConfiguration/TimeConfiguration.h>
 #include <Utility/Logger/Logger.h>
 
 namespace ktt::db
@@ -180,7 +184,9 @@ void Database::SaveResults(const TuningInfo &tuningInfo, std::vector<KernelResul
              *device.id,
              *tuner.id,
              option.format,
-             tuningInfo.inputData}
+             tuningInfo.inputData,
+             // The results below are serialized with the time unit active now, so the run records that unit.
+             ktt::TimeConfiguration::GetInstance().GetTimeUnit()}
         );
 
         ResultRepository::CreateResults(m_Connection, runId, results, option.format, option.indent);
@@ -250,7 +256,8 @@ std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery &qu
         return {};
     }
 
-    std::vector<KernelResult> bestResults;
+    // Each result keeps its stored kernel duration (tuning_result.duration), the key the SQL orders by.
+    std::vector<StoredResult> bestResults;
     size_t offset = 0;
 
     for (auto runs = RunRepository::GetRunsBySpaceId(m_Connection, space.value().id.value(), offset, RunBatchSize);
@@ -288,17 +295,24 @@ std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery &qu
         if (batchResults.empty())
             continue;
 
-        bestResults.insert(bestResults.end(), batchResults.begin(), batchResults.end());
-
-        std::sort(bestResults.begin(), bestResults.end(), [](const KernelResult &left, const KernelResult &right) {
-            return left.GetTotalDuration() < right.GetTotalDuration();
-        });
+        // Both ranges are sorted by the stored kernel duration: bestResults by earlier merges, batchResults by the SQL.
+        // The merge uses that same key and is stable, so equal durations keep their order and earlier batches win ties.
+        const auto oldSize = static_cast<std::ptrdiff_t>(bestResults.size());
+        bestResults.insert(bestResults.end(), std::make_move_iterator(batchResults.begin()),
+            std::make_move_iterator(batchResults.end()));
+        std::inplace_merge(bestResults.begin(), bestResults.begin() + oldSize, bestResults.end(),
+            [](const StoredResult &left, const StoredResult &right) { return left.duration < right.duration; });
 
         if (bestResults.size() > query.limit)
-            bestResults.resize(query.limit);
+            bestResults.erase(bestResults.begin() + query.limit, bestResults.end());
     }
 
-    return bestResults;
+    std::vector<KernelResult> results;
+    results.reserve(bestResults.size());
+    for (auto &best : bestResults)
+        results.push_back(std::move(best.result));
+
+    return results;
 }
 
 std::optional<SourceStats> Database::GetStatsForSource(const size_t sourceFingerprint) const
@@ -357,7 +371,8 @@ size_t Database::SyncFrom(const Database &other) const
                  *device.id,
                  *tuner.id,
                  record.outputFormat,
-                 record.inputData},
+                 record.inputData,
+                 record.timeUnit},
                 record.guid,
                 record.createdAt
             );

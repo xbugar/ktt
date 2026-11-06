@@ -50,7 +50,10 @@ const auto tuningInfo = m_tuner.GetDatabaseTuningInfo(m_kernel);
 ## Get stored results
 
 Query the fastest stored results for a tuning problem. The simple form returns
-them directly (up to `limit`, default 50):
+them directly (up to `limit`, default 50), fastest stored kernel duration first. It
+uses results from the same device model, and on CUDA also from other models
+with the same compute capability major version and a minor version at most one
+apart (see [README.md](README.md#load-results-and-stats)):
 
 ```cpp
 const auto simpleResults = db.SimpleGetBestResults(tuningInfo, 50);
@@ -74,6 +77,10 @@ std::cout << "Loaded " << simpleResults.size() << " best result(s) from the data
           << "(" << queryResults.size() << " via CUDA-filtered query)." << std::endl;
 ```
 
+Loading reads the stored durations in the time unit the results were saved
+with, so the loaded durations are right whatever unit `m_tuner.SetTimeUnit` sets
+when loading (see [README.md](README.md#time-unit)).
+
 A retrieved `KernelResult` can be turned back into a configuration and executed
 directly, avoiding a full tuning sweep when a good config is already known.
 Running a configuration is a KTT operation (`m_tuner.Run`), not a database one —
@@ -96,7 +103,8 @@ operation, not part of the database — `SaveResults` simply persists the result
 it produced, so a tuning run must happen first. `inputData` attaches free-form
 run metadata (later filterable via the `inputPredicate` in a
 `GetBestResultsQuery`); `SaveOptions` controls the stored serialization format
-and JSON indentation:
+and JSON indentation. The run also stores the time unit active in KTT, which is
+used to read the durations back:
 
 ```cpp
 const auto results = m_tuner.Tune(m_kernel, std::move(m_config->stopCondition),
@@ -135,10 +143,11 @@ back in `SourceStats::name` (see [Reading stats for a source](#reading-stats-for
 ## Sync from another database
 
 Needs an open database.
-Merges every run from another database file into the local one. Runs are matched
-by GUID, so existing runs are skipped — idempotent and safe to repeat. The other
-file is only read by the sync, but opening it as a `Database` creates its schema
-when missing, so it must be writable. In the example the path comes from the
+Merges every run from another database file into the local one, with each
+run's time unit. Runs are matched by GUID, so existing runs are skipped —
+idempotent and safe to repeat. The other file is only read by the sync, but
+opening it as a `Database` creates its schema when missing, so it must be
+writable. In the example the path comes from the
 `--db-sync` CLI option, and the sync only runs when that option is given:
 
 ```cpp
@@ -157,8 +166,8 @@ From [Database/Database.h](Database/Database.h):
 | `Database()` | Open/create the default DB (`~/.local/share/ktt/ktt.db` on Linux, `%LOCALAPPDATA%\ktt\ktt.db` on Windows). |
 | `Database(std::filesystem::path)` | Open/create a DB at a custom path. |
 | `Database(sqlite3*)` | Adopt an already-open connection (not owned; caller closes it). |
-| `SaveResults(source, results, options = {})` | Persist a run's `KernelResult`s. |
-| `SimpleGetBestResults(source, limit = 50)` | Fastest stored results for a tuning problem. |
+| `SaveResults(source, results, options = {})` | Persist a run's `KernelResult`s with the active time unit. |
+| `SimpleGetBestResults(source, limit = 50)` | Fastest stored results for a tuning problem on a matching device. |
 | `GetBestResults(query)` | Best results with device / input-data predicates. |
 | `GetStatsForSource(sourceFingerprint)` | Aggregate counts (spaces, devices, runs, results) and the name of a source; `std::nullopt` if unknown. |
 | `SyncFrom(const Database&)` | Merge runs from another DB (path, in-memory or connection) by GUID; returns count added. |

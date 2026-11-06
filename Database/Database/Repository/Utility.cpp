@@ -10,6 +10,7 @@
 #include <Api/KttException.h>
 #include <Database/Repository/Utility.h>
 #include <Database/Utility/ResultSerializationJsonT4.h>
+#include <Database/Utility/TimeUnitGuard.h>
 #include <Output/JsonConverters.h>
 #include <Output/XmlConverters.h>
 
@@ -64,5 +65,13 @@ KernelResult DatabaseUtility::DeserializeResult(const std::string& text, const k
     default:
         return nlohmann::json::parse(text).get<KernelResult>();
     }
+}
+
+KernelResult DatabaseUtility::DeserializeResult(
+    const std::string& text, const ktt::OutputFormat format, const TimeUnit timeUnit
+)
+{
+    const TimeUnitGuard guard(timeUnit);
+    return DeserializeResult(text, format);
 }
 } // namespace ktt::db

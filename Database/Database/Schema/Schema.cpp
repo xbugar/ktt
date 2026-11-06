@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS tuning_run
     device_id        INTEGER NOT NULL REFERENCES device (id),
     tuner_id         INTEGER NOT NULL REFERENCES tuner (id),
     output_format_id INTEGER NOT NULL REFERENCES output_format (id),
+    time_unit        TEXT    NOT NULL CHECK (time_unit IN ('nanoseconds', 'microseconds', 'milliseconds', 'seconds')),
     created_at       TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
     input_data       TEXT
 );

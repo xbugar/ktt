@@ -12,10 +12,37 @@ Enable the database build option in premake5 (use the option `--database`), whic
 
 Open a `Database` (default location `~/.local/share/ktt/ktt.db` on Linux, or `$XDG_DATA_HOME/ktt/ktt.db` when set; `%LOCALAPPDATA%\ktt\ktt.db` on Windows) and use `GetDatabaseTuningInfo` to key queries against a tuning problem:
 
-- `SimpleGetBestResults` returns the fastest stored results for that tuning problem.
+- `SimpleGetBestResults` returns the fastest stored results for that tuning problem on a matching device (see below).
 - `GetBestResults` takes a `GetBestResultsQuery` with optional device and input-data predicates for fine-grained filtering.
 - `GetStatsForSource` returns aggregate counts (spaces, devices, runs, results) and the name of a source, for a
   source fingerprint.
+
+`SimpleGetBestResults` and `GetBestResults` return the results fastest first, up to the given limit. Both order by the
+kernel duration stored when the result was saved (`tuning_result.duration`: `KernelResult::GetKernelDuration` at save
+time, in nanoseconds, which leaves out the extra duration of the launcher), so the two methods agree. For results saved
+in `JSON_T4`, the loaded `GetKernelDuration` can differ from that key, because the T4 format keeps only the total
+duration and loads it as the kernel duration.
+
+`SimpleGetBestResults` uses a stored result when its run's device matches the queried device:
+
+- the same model, that is the same device name, vendor and type, on any compute API; or
+- for a CUDA device, a device of another model on CUDA with the same compute capability major version and a minor
+  version at most one apart (8.6 matches 8.5, 8.6 and 8.7, but not 8.4, 8.8 or 7.6).
+
+Other device properties (extensions, driver version, device identifier) are not compared. Use `GetBestResults` with a
+device predicate for any other rule.
+
+## Time unit
+
+KTT writes the durations inside a serialized result in the time unit active when the result is saved
+(`Tuner::SetTimeUnit`, milliseconds by default). `SaveResults` stores that unit with the run (`tuning_run.time_unit`),
+and loading a result reads its durations in that stored unit, so the loaded `KernelResult` has the same durations
+whatever unit is active when you load it. Runs saved under different units can be mixed in one database, and
+`SyncFrom` copies the unit of each run.
+
+To read the stored durations, the database switches KTT's process-wide time unit to the run's unit while it
+deserializes a result and restores the previous unit afterwards. This is not thread-safe: do not load results while
+another thread uses or changes the time unit (for example while it tunes or prints results).
 
 ## Save results
 
@@ -37,8 +64,8 @@ A name is stored only when the source or space is created, that is on the first 
 save never changes it, even when it carries a different name or none. The source name is returned in
 `SourceStats::name` by `GetStatsForSource`.
 
-The schema is not migrated. A database file written before the names existed (without the `name` columns) is not
-supported and must be recreated.
+The schema is not migrated. A database file written before the names existed (without the `name` columns) or before
+the time unit was stored (without `tuning_run.time_unit`) is not supported and must be recreated.
 
 ## Sync from another database
 

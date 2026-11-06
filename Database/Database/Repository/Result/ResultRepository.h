@@ -21,6 +21,17 @@ struct RawResult
     std::string result; ///< Serialized result payload, in the owning run's output format.
 };
 
+/** @struct StoredResult
+ * A loaded kernel result together with its stored kernel duration (tuning_result.duration), the key the queries
+ * order by. The stored duration can differ from the loaded result's KernelResult::GetKernelDuration: JSON_T4 keeps
+ * only the total duration, and the durations inside the serialized result lose precision below the run's time unit.
+ */
+struct StoredResult
+{
+    int64_t duration{}; ///< Stored kernel duration in nanoseconds (tuning_result.duration).
+    KernelResult result; ///< The result, deserialized with the time unit stored on its run.
+};
+
 /** @class ResultRepository
  * Data access layer for kernel execution results in the database.
  * Manages storage and retrieval of kernel execution results with performance metrics.
@@ -48,8 +59,9 @@ public:
 
     /** @fn static std::vector<KernelResult> SimpleGetBestResults(sqlite3* connection, size_t spaceId, const Device&
      * device, uint32_t limit = 50) Retrieves the best kernel results for a space and device combination. Results are
-     * ordered by duration (fastest first). Supports device matching by exact name/vendor/type or by compute API and
-     * version.
+     * ordered by the stored kernel duration (fastest first). A run's device matches when it is the same model (name,
+     * vendor and type), or, for CUDA only, when it has the same compute capability major and a minor within +-1. Other
+     * compute APIs match by model only. Each result is deserialized with the time unit stored on its run.
      * @param connection SQLite database connection.
      * @param spaceId Database ID of the tuning space.
      * @param device Device information to filter by.
@@ -61,15 +73,17 @@ public:
         sqlite3* connection, size_t spaceId, const Device& device, uint32_t limit
     );
 
-    /** @fn static std::vector<KernelResult> ResultsByRunIds(sqlite3* connection, const std::vector<size_t>& runIds,
-     * uint32_t limit) Retrieves kernel results for a list of run IDs.
+    /** @fn static std::vector<StoredResult> ResultsByRunIds(sqlite3* connection, const std::vector<size_t>& runIds,
+     * uint32_t limit) Retrieves kernel results for a list of run IDs, deserialized with the time unit stored on
+     * their runs, each together with its stored kernel duration.
      * @param connection SQLite database connection.
      * @param runIds Vector of run IDs to retrieve results for.
      * @param limit Maximum number of results to return.
-     * @return Vector of KernelResult objects sorted by execution time.
-     * @throw KttException If query fails or runIds is empty.
+     * @return Vector of StoredResult objects sorted by the stored kernel duration (StoredResult::duration), or an
+     * empty vector when runIds is empty or limit is 0.
+     * @throw KttException If query fails.
      */
-    static std::vector<KernelResult> ResultsByRunIds(
+    static std::vector<StoredResult> ResultsByRunIds(
         sqlite3* connection, const std::vector<size_t>& runIds, uint32_t limit
     );
 
