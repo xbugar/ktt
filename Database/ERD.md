@@ -48,6 +48,7 @@ erDiagram
     tuning_source {
         INTEGER id PK "AUTOINCREMENT"
         TEXT source_fingerprint UK "NOT NULL"
+        TEXT name "nullable"
         TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
     }
 
@@ -56,6 +57,7 @@ erDiagram
         INTEGER source_id FK "NOT NULL"
         TEXT parameter_fingerprint "NOT NULL"
         TEXT space_fingerprint "NOT NULL"
+        TEXT name "nullable"
         TIMESTAMP created_at "DEFAULT CURRENT_TIMESTAMP"
     }
 
@@ -120,7 +122,11 @@ erDiagram
   - `device.driver_version`: `''` when unknown or not applicable (e.g. the C++/CPU backend)
 - `tuner` records the tuner that produced a run, from `ktt::db::TuningInfo::tuner` (name is always `KTT`, version is
   `ktt::GetKttVersionString()`).
+- `tuning_source.name` and `tuning_space.name` are optional human-readable names, from
+  `ktt::db::TuningSpaceInfo::sourceName` / `spaceName`. A name is stored only when the row is created; a later save
+  with the same fingerprints never changes it. The schema is not migrated: a database file written before these
+  columns existed is not supported and must be recreated.
 - A `tuning_run` is uniquely identified across databases by its `guid`, which is what
-  `Sync` uses to skip already-imported runs.
-- `Sync` copies each run together with its `device` (including device identifier and driver version) and
-  `tuner`.
+  `SyncFrom` uses to skip already-imported runs.
+- `SyncFrom` copies each run together with its `device` (including device identifier and driver version), `tuner`,
+  and the names of its source and space (applied only when the source or space is new in the target).

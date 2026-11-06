@@ -207,7 +207,8 @@ std::vector<KernelResult> Database::SimpleGetBestResults(const TuningInfo &t, ui
         {std::nullopt, // space Id
          source.value().id.value(),
          t.spaceInfo.parameterFingerprint,
-         t.spaceInfo.spaceFingerprint}
+         t.spaceInfo.spaceFingerprint,
+         std::nullopt} // name, not used by the lookup
     );
     if (space == std::nullopt)
     {
@@ -240,7 +241,8 @@ std::vector<KernelResult> Database::GetBestResults(const GetBestResultsQuery &qu
         {std::nullopt, // space Id
          source.value().id.value(),
          query.source.parameterFingerprint,
-         query.source.spaceFingerprint}
+         query.source.spaceFingerprint,
+         std::nullopt} // name, not used by the lookup
     );
     if (space == std::nullopt)
     {
@@ -307,12 +309,12 @@ std::optional<SourceStats> Database::GetStatsForSource(const size_t sourceFinger
 size_t Database::SyncFrom(const Database &other) const
 {
     sqlite3 *source = other.m_Connection;
-    const std::string sourceName = ToUtf8(other.m_DatabasePath);
+    const std::string otherPath = ToUtf8(other.m_DatabasePath);
 
     if (IsSameDatabase(source, m_Connection))
-        throw KttException("Cannot sync: database cannot be synced from itself: " + sourceName);
+        throw KttException("Cannot sync: database cannot be synced from itself: " + otherPath);
 
-    ktt::Logger::LogInfo("Syncing runs from " + sourceName + " into " + ToUtf8(m_DatabasePath));
+    ktt::Logger::LogInfo("Syncing runs from " + otherPath + " into " + ToUtf8(m_DatabasePath));
 
     size_t inserted = 0;
     size_t total = 0;

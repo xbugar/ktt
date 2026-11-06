@@ -2,9 +2,13 @@
 
 #if defined(KTT_DATABASE)
 
+#include <filesystem>
 #include <optional>
 #include <sqlite3.h>
 #include <string>
+
+#include <Database/Utility/JsonConverters.h>
+#include <json.hpp>
 
 #include "DatabaseTestHelpers.h"
 
@@ -21,7 +25,7 @@ struct InMemoryConnection
 
     InMemoryConnection()
     {
-        sqlite3_open(":memory:", &handle);
+        REQUIRE(sqlite3_open(":memory:", &handle) == SQLITE_OK);
     }
 
     ~InMemoryConnection()
@@ -115,6 +119,76 @@ TEST_CASE("Database keeps the original name when the source and space already ex
     REQUIRE(QueryInt(connection.handle, "SELECT COUNT(*) FROM tuning_space") == 1);
     REQUIRE(QueryOptionalText(connection.handle, "SELECT name FROM tuning_source") == "Original source name");
     REQUIRE(QueryOptionalText(connection.handle, "SELECT name FROM tuning_space") == "Original space name");
+}
+
+TEST_CASE("Database sync copies the source and space names", "Database")
+{
+    const auto path = std::filesystem::temp_directory_path() / "ktt_database_test_sync_names.db";
+    std::filesystem::remove(path);
+
+    auto tuningInfo = MakeTuningInfo();
+    tuningInfo.spaceInfo.sourceName = "Synced source";
+    tuningInfo.spaceInfo.spaceName = "Synced space";
+
+    {
+        const ktt::db::Database other(path);
+        other.SaveResults(tuningInfo, {MakeResult("simpleKernel", 64, 5 * Millisecond)});
+    }
+
+    InMemoryConnection connection;
+    const ktt::db::Database db(connection.handle);
+    REQUIRE(db.SyncFrom(ktt::db::Database(path)) == 1);
+
+    REQUIRE(db.GetStatsForSource(tuningInfo.spaceInfo.sourceFingerprint).value().name == "Synced source");
+    REQUIRE(QueryOptionalText(connection.handle, "SELECT name FROM tuning_space") == "Synced space");
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("SourceStats JSON carries the source name", "Database")
+{
+    ktt::db::SourceStats stats;
+    stats.spaceCount = 1;
+    stats.deviceCount = 2;
+    stats.runCount = 3;
+    stats.resultCount = 4;
+
+    SECTION("an unset name is written as null and read back as unset")
+    {
+        const nlohmann::json json = stats;
+        REQUIRE(json.contains("name"));
+        REQUIRE(json["name"].is_null());
+
+        const auto parsed = json.get<ktt::db::SourceStats>();
+        REQUIRE(parsed.name == std::nullopt);
+        REQUIRE(parsed.runCount == 3);
+    }
+
+    SECTION("a set name round-trips")
+    {
+        stats.name = "My GEMM kernel";
+        const nlohmann::json json = stats;
+        REQUIRE(json["name"] == "My GEMM kernel");
+
+        const auto parsed = json.get<ktt::db::SourceStats>();
+        REQUIRE(parsed.name == "My GEMM kernel");
+        REQUIRE(parsed.spaceCount == 1);
+        REQUIRE(parsed.deviceCount == 2);
+        REQUIRE(parsed.runCount == 3);
+        REQUIRE(parsed.resultCount == 4);
+    }
+
+    SECTION("a missing name key reads as unset")
+    {
+        // The name key is optional when reading, e.g. for JSON written without the names.
+        const auto json = nlohmann::json::parse(R"({"spaceCount": 1, "deviceCount": 2, "runCount": 3, "resultCount": 4})");
+
+        ktt::db::SourceStats parsed;
+        parsed.name = "stale";
+        json.get_to(parsed);
+        REQUIRE(parsed.name == std::nullopt);
+        REQUIRE(parsed.resultCount == 4);
+    }
 }
 
 #endif // KTT_DATABASE

@@ -118,18 +118,33 @@ fields — the output format and the JSON indentation — look like this:
 }
 ```
 
+### Name the source and the tuning space
+
+Not exercised by the example. Before saving, the source and the tuning space can
+be given a human-readable name. Both are optional and unset by default:
+
+```cpp
+save.spaceInfo.sourceName = "Coulomb sum 3D";
+save.spaceInfo.spaceName = "Default search space";
+```
+
+A name is stored only on the first save that creates the source or space; a
+later save with the same fingerprints never changes it. The source name comes
+back in `SourceStats::name` (see [Reading stats for a source](#reading-stats-for-a-source)).
+
 ## Sync from another database
 
 Needs an open database.
 Merges every run from another database file into the local one. Runs are matched
-by GUID, so existing runs are skipped — idempotent and safe to repeat. In the
-example the path comes from the `--db-sync` CLI option, and the sync only runs when
-that option is given:
+by GUID, so existing runs are skipped — idempotent and safe to repeat. The other
+file is only read by the sync, but opening it as a `Database` creates its schema
+when missing, so it must be writable. In the example the path comes from the
+`--db-sync` CLI option, and the sync only runs when that option is given:
 
 ```cpp
 if (!m_dbSyncPath.empty())
 {
-    db.Sync(ktt::db::Database(m_dbSyncPath));   // returns the number of runs newly added
+    db.SyncFrom(ktt::db::Database(m_dbSyncPath));   // returns the number of runs newly added
 }
 ```
 
@@ -145,8 +160,8 @@ From [Database/Database.h](Database/Database.h):
 | `SaveResults(source, results, options = {})` | Persist a run's `KernelResult`s. |
 | `SimpleGetBestResults(source, limit = 50)` | Fastest stored results for a tuning problem. |
 | `GetBestResults(query)` | Best results with device / input-data predicates. |
-| `GetStatsForSource(sourceFingerprint)` | Aggregate counts (spaces, devices, runs, results) for a source; `std::nullopt` if unknown. |
-| `Sync(const Database&)` | Merge runs from another DB (path, in-memory or connection) by GUID; returns count added. |
+| `GetStatsForSource(sourceFingerprint)` | Aggregate counts (spaces, devices, runs, results) and the name of a source; `std::nullopt` if unknown. |
+| `SyncFrom(const Database&)` | Merge runs from another DB (path, in-memory or connection) by GUID; returns count added. |
 
 ### Reading stats for a source
 
@@ -158,5 +173,17 @@ if (stats)
 {
     const nlohmann::json statsJson = *stats;
     std::cout << statsJson.dump(2) << std::endl;
+}
+```
+
+The JSON holds the counts and the source name (`null` when the source has none):
+
+```json
+{
+  "deviceCount": 1,
+  "name": "Coulomb sum 3D",
+  "resultCount": 120,
+  "runCount": 3,
+  "spaceCount": 1
 }
 ```
