@@ -426,6 +426,20 @@ ktt::db::TuningInfo TunerCore::GetDatabaseTuningInfo(const KernelId id) const
     return s;
 }
 
+std::vector<ktt::db::SourceDefinition> TunerCore::GetKernelSources(const KernelId id) const
+{
+    const auto& kernel = m_KernelManager->GetKernel(id);
+    std::vector<ktt::db::SourceDefinition> sources;
+
+    // The same definitions, in the same order, as the source fingerprint in GetDatabaseTuningInfo
+    for (const auto* definition : kernel.GetDefinitions())
+    {
+        sources.push_back(ktt::db::SourceDefinition{definition->GetName(), definition->GetSource()});
+    }
+
+    return sources;
+}
+
 void TunerCore::SaveResults(const std::vector<KernelResult>& results, const std::string& filePath, const OutputFormat format,
     const UserData& data) const
 {

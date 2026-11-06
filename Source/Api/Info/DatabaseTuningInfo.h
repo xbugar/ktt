@@ -63,4 +63,15 @@ struct TuningInfo
     TuningSpaceInfo spaceInfo{}; ///< Fingerprints identifying the tuning space
 };
 
+/** @struct SourceDefinition
+ * One kernel definition's name and source code, as returned by Tuner::GetKernelSources. A kernel's source fingerprint
+ * (TuningSpaceInfo::sourceFingerprint) is computed from the sources of its definitions in order; the names are not
+ * part of it.
+ */
+struct SourceDefinition
+{
+    std::string name; ///< Name of the kernel definition (function name)
+    std::string source; ///< Source code of the kernel definition, exactly as given to KTT
+};
+
 } // namespace ktt::db

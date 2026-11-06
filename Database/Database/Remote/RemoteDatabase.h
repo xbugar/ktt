@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -11,12 +12,27 @@
 
 #include <Database/IDatabase.h>
 #include <Database/Remote/ResultQuery.h>
+#include <KttTypes.h>
+
+namespace ktt
+{
+class Tuner;
+} // namespace ktt
 
 namespace ktt::db
 {
 
 class HttpClient;
 class RemoteClient;
+
+/** @typedef SourceCodeProvider
+ * Returns the kernel definitions whose source fingerprint is sourceFingerprint, in the order of the kernel's
+ * definitions (Tuner::GetKernelSources), or std::nullopt when it does not know that source. Used by
+ * RemoteDatabase::SaveResults to upload the source code the server does not have yet (see
+ * RemoteDatabaseOptions::sourceCodeProvider). It is called on the thread that calls SaveResults, so from several
+ * threads at once when SaveResults is.
+ */
+using SourceCodeProvider = std::function<std::optional<std::vector<SourceDefinition>>(size_t sourceFingerprint)>;
 
 /** @struct RemoteDatabaseOptions
  * Connection settings of a RemoteDatabase. A proxy is taken from the environment variables that libcurl reads:
@@ -29,6 +45,11 @@ struct RemoteDatabaseOptions
     uint32_t maxRetries{3}; ///< Additional attempts after a connection error, a timeout or 502 / 503 / 504.
     bool verifyTls{true}; ///< Verify the server's TLS certificate and host name. Disable only for testing.
     std::optional<std::filesystem::path> caBundle; ///< A custom CA bundle (PEM), e.g. for an internal server.
+    /// Supplies the kernel source code after a save. When it is set and the server answers a SaveResults with
+    /// source_has_code false, the client asks it for the code of the saved source and uploads it with
+    /// RemoteDatabase::SaveSourceCode. A failed upload only logs a warning. Empty (the default): nothing is uploaded.
+    /// See MakeSourceCodeProvider for a provider that serves the kernels of a Tuner.
+    SourceCodeProvider sourceCodeProvider;
 };
 
 /** @class RemoteDatabase
@@ -144,8 +165,41 @@ public:
      */
     std::vector<ResultQueryItem> QueryResults(const ResultQuery &query) const;
 
+    /** @fn bool SaveSourceCode(size_t sourceFingerprint, const std::vector<SourceDefinition>& definitions) const
+     * Uploads the source code of a kernel (PUT /ktt-db/app/source/{fingerprint}/code), so that the web app can show
+     * it. Remote only: the local Database stores no source code. The server keeps the code once per source and never
+     * changes it, and it accepts it only if the sources have the given fingerprint. The source must already be on the
+     * server and visible to the API key, i.e. a run of it must have been saved first. SaveResults calls this by
+     * itself when RemoteDatabaseOptions::sourceCodeProvider is set.
+     * Before the request the client checks what the server would reject: 1 to 32 definitions, each source at most
+     * 1 MiB and all of them at most 4 MiB, each name at most 1 KiB (UTF-8 bytes), valid UTF-8 without U+0000, a
+     * request body of at most 5 MiB, and the source fingerprint of the definitions, recomputed as KTT computes it.
+     * @param sourceFingerprint The source fingerprint (TuningSpaceInfo::sourceFingerprint) the code belongs to.
+     * @param definitions The kernel's definitions in the order of its definitions, e.g. from
+     *        Tuner::GetKernelSources. The sources are sent byte for byte, with nothing trimmed or converted; the names
+     *        are informational and not part of the fingerprint.
+     * @return True if the code was stored now (HTTP 201), false if the server already had it (HTTP 200; also the
+     *         case when an earlier attempt of the same call stored it and its answer was lost).
+     * @throw KttException If a check above fails (before any request; a fingerprint mismatch means the definitions are
+     *        not the ones the fingerprint was computed from), the source is unknown or not visible to the key (HTTP
+     *        404), the server rejects the code (e.g. HTTP 400, 403 or 413), or the request fails after its retries.
+     */
+    bool SaveSourceCode(size_t sourceFingerprint, const std::vector<SourceDefinition> &definitions) const;
+
 private:
     std::unique_ptr<RemoteClient> m_Client;
+    SourceCodeProvider m_SourceCodeProvider;
 };
+
+/** @fn SourceCodeProvider MakeSourceCodeProvider(const Tuner& tuner, std::vector<KernelId> kernels)
+ * Creates a source-code provider (RemoteDatabaseOptions::sourceCodeProvider) that serves the given kernels of a tuner:
+ * for a source fingerprint it returns Tuner::GetKernelSources of the first of the kernels whose sources have that
+ * fingerprint, and std::nullopt if none has. The provider keeps a reference to the tuner, which must outlive every
+ * RemoteDatabase that uses it, and it runs on the thread that calls SaveResults.
+ * @param tuner The tuner that holds the kernels.
+ * @param kernels Ids of the kernels whose results are saved through the RemoteDatabase.
+ * @return The provider.
+ */
+KTT_API SourceCodeProvider MakeSourceCodeProvider(const Tuner &tuner, std::vector<KernelId> kernels);
 
 } // namespace ktt::db

@@ -16,6 +16,7 @@
 #include <Database/Remote/Http/CurlHttpClient.h>
 #include <Database/Remote/RemoteClient.h>
 #include <Database/Remote/RemoteDatabase.h>
+#include <Database/Remote/RemoteDatabaseInternal.h>
 #include <Database/Remote/RemoteDatabaseShared.h>
 #include <Database/Remote/WireFormat.h>
 #include <Database/Repository/Utility.h>
@@ -309,11 +310,11 @@ std::string DescribeErrorBody(const std::string &body)
 // safe to repeat, and POST /run carries the run id, so the server recognizes a repeated save.
 // @return The body of a 200 or 201 response; std::nullopt for 404 when notFoundIsEmpty and the body is a ktt-db error
 //         body. Any other 404 (an unmatched route has an empty body, a proxy sends its own page) throws, so a wrong base
-//         URL is not mistaken for "not found".
+//         URL is not mistaken for "not found". If status is not null, it receives the status of a 200 or 201.
 // @throw KttException For every other status, a network error, or a success body that is not a JSON object. The
 //        message has the operation, the request and the status, never the API key.
 std::optional<json> Call(const RemoteClient &client, const std::string &operation, const std::string_view method,
-    const std::string &path, const json *body, const bool notFoundIsEmpty)
+    const std::string &path, const json *body, const bool notFoundIsEmpty, long *status = nullptr)
 {
     HttpResponse response;
 
@@ -344,6 +345,9 @@ std::optional<json> Call(const RemoteClient &client, const std::string &operatio
         throw KttException(operation + " failed: the body of HTTP " + std::to_string(response.status) + " from "
             + request + " is not a JSON object: " + Quote(client.Redact(response.body)));
     }
+
+    if (status != nullptr)
+        *status = response.status;
 
     return parsed;
 }
@@ -415,7 +419,8 @@ RemoteDatabase::RemoteDatabase(std::string baseUrl, std::string apiKey, RemoteDa
 RemoteDatabase::RemoteDatabase(std::string baseUrl, std::string apiKey, RemoteDatabaseOptions options,
     std::shared_ptr<HttpClient> httpClient) :
     m_Client(std::make_unique<RemoteClient>(std::move(baseUrl), std::move(apiKey), options.maxRetries,
-        std::move(httpClient)))
+        std::move(httpClient))),
+    m_SourceCodeProvider(std::move(options.sourceCodeProvider))
 {}
 
 RemoteDatabase::~RemoteDatabase() = default;
@@ -426,7 +431,7 @@ void RemoteDatabase::SaveResults(const TuningInfo &source, std::vector<KernelRes
     static const std::string Operation = "RemoteDatabase::SaveResults";
     ValidateTuningInfo(source);
 
-    Translate(Operation, *m_Client, [&]
+    const json response = Translate(Operation, *m_Client, [&]
     {
         // Generated once, before the request: every retry sends the same id, so the server saves the run only once.
         const uuid runId = UuidGenerator::GenerateUuidV7();
@@ -453,8 +458,11 @@ void RemoteDatabase::SaveResults(const TuningInfo &source, std::vector<KernelRes
                 {"results", std::move(wireResults)}};
         }
 
-        Call(*m_Client, Operation, "POST", "/run", &body, false);
+        // Without notFoundIsEmpty, Call returns a body or throws.
+        return *Call(*m_Client, Operation, "POST", "/run", &body, false);
     });
+
+    UploadMissingSourceCode(*this, m_SourceCodeProvider, source.spaceInfo.sourceFingerprint, response);
 }
 
 std::vector<KernelResult> RemoteDatabase::SimpleGetBestResults(const TuningInfo &source, const uint32_t limit) const
@@ -621,5 +629,18 @@ OutputFormat ReadOutputFormat(const std::string &name)
 }
 
 } // namespace remote
+
+// The request helpers above, for the other source files of RemoteDatabase (RemoteDatabaseInternal.h).
+
+std::optional<json> CallRemote(const RemoteClient &client, const std::string &operation, const std::string_view method,
+    const std::string &path, const json *body, const bool notFoundIsEmpty, long *status)
+{
+    return Call(client, operation, method, path, body, notFoundIsEmpty, status);
+}
+
+void TranslateRemote(const std::string &operation, const RemoteClient &client, const std::function<void()> &function)
+{
+    Translate(operation, client, function);
+}
 
 } // namespace ktt::db

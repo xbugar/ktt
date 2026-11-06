@@ -199,6 +199,8 @@ From [Database/Database.h](Database/Database.h):
 | `RemoteDatabase(baseUrl, apiKey, options = {})` | Client for a ktt-db server; does not contact it. `RemoteDatabaseOptions` sets timeouts, retries and TLS. |
 | `SaveResults`, `SimpleGetBestResults`, `GetBestResults`, `GetStatsForSource` | As for `Database`, on the server; the differences are listed in [README.md](README.md#remote-database). |
 | `QueryResults(query)` | Remote only: one page of the results matching a filter over everything the API key can see, with run, device and source; see [README.md](README.md#result-query-remote-only). |
+| `SaveSourceCode(sourceFingerprint, definitions)` | Upload the kernel source code for the web app (from `Tuner::GetKernelSources`); `true` if stored now, `false` if the server had it. See [README.md](README.md#kernel-source-code). |
+| `MakeSourceCodeProvider(tuner, kernels)` | A `RemoteDatabaseOptions::sourceCodeProvider`, so that `SaveResults` uploads the code of these kernels when the server has none. |
 
 ### Reading stats for a source
 
