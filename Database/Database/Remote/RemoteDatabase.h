@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <Database/IDatabase.h>
+#include <Database/Remote/ResultQuery.h>
 
 namespace ktt::db
 {
@@ -127,6 +128,21 @@ public:
      * @throw KttException If the request fails.
      */
     std::optional<SourceStats> GetStatsForSource(size_t sourceFingerprint) const override;
+
+    /** @fn std::vector<ResultQueryItem> QueryResults(const ResultQuery& query) const
+     * Searches every result the API key can see with an OData-style filter (POST /ktt-db/app/result/query). Remote
+     * only: the local Database has no equivalent. The filter is sent unchanged and checked by the server, whose
+     * message points at the problem. Unlike GetBestResults, the condition runs on the server in one request, so it is
+     * the fast path whenever it can be written as a filter. Page with query.top and query.skip.
+     * A query that runs into the server's statement timeout (HTTP 503 with code query_timeout) is not retried,
+     * because it would time out again; narrow the filter instead. Other 502 / 503 / 504 responses are retried.
+     * @param query Filter, order, page and whether to include the stored payloads.
+     * @return One page of results in the requested order; empty when nothing matches or query.top is 0.
+     * @throw KttException If query.top is above 1000 or query.skip above 100000 (before any request), the server
+     *        rejects the query (e.g. HTTP 400 for a bad filter, with the server's message), the query times out, or
+     *        the request fails after its retries.
+     */
+    std::vector<ResultQueryItem> QueryResults(const ResultQuery &query) const;
 
 private:
     std::unique_ptr<RemoteClient> m_Client;

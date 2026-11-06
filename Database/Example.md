@@ -198,6 +198,7 @@ From [Database/Database.h](Database/Database.h):
 | --- | --- |
 | `RemoteDatabase(baseUrl, apiKey, options = {})` | Client for a ktt-db server; does not contact it. `RemoteDatabaseOptions` sets timeouts, retries and TLS. |
 | `SaveResults`, `SimpleGetBestResults`, `GetBestResults`, `GetStatsForSource` | As for `Database`, on the server; the differences are listed in [README.md](README.md#remote-database). |
+| `QueryResults(query)` | Remote only: one page of the results matching a filter over everything the API key can see, with run, device and source; see [README.md](README.md#result-query-remote-only). |
 
 ### Reading stats for a source
 
