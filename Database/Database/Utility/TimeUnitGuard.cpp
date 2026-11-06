@@ -33,7 +33,14 @@ TimeUnit TimeUnitFromName(const std::string& name)
     throw KttException("Unknown time unit name '" + name + "'");
 }
 
+std::unique_lock<std::recursive_mutex> LockTimeUnit()
+{
+    static std::recursive_mutex mutex;
+    return std::unique_lock<std::recursive_mutex>(mutex);
+}
+
 TimeUnitGuard::TimeUnitGuard(const TimeUnit unit) :
+    m_Lock(LockTimeUnit()),
     m_PreviousUnit(TimeConfiguration::GetInstance().GetTimeUnit())
 {
     TimeConfiguration::GetInstance().SetTimeUnit(unit);

@@ -33,22 +33,4 @@ size_t FingerprintFromWire(const std::string &text)
     return static_cast<size_t>(value);
 }
 
-std::string UuidToWire(const uuid &id)
-{
-    static constexpr char HexDigits[] = "0123456789abcdef";
-    std::string text;
-    text.reserve(36);
-
-    for (size_t i = 0; i < id.size(); ++i)
-    {
-        if (i == 4 || i == 6 || i == 8 || i == 10)
-            text += '-';
-
-        text += HexDigits[id[i] >> 4];
-        text += HexDigits[id[i] & 0x0F];
-    }
-
-    return text;
-}
-
 } // namespace ktt::db

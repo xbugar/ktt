@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 
 namespace ktt::db
 {
@@ -26,6 +27,17 @@ public:
      * Returns the version of the UUID (the high nibble of byte 6), e.g. 4 or 7.
      */
     static uint8_t GetVersion(const uuid& id);
+
+    /** @fn static std::string ToString(const uuid& id)
+     * Formats the UUID in the lowercase 8-4-4-4-12 form used on the wire, e.g. "0193a1f2-7c4e-7b3a-9d21-5e8f0c6a4b17".
+     */
+    static std::string ToString(const uuid& id);
+
+    /** @fn static uuid Parse(const std::string& text)
+     * Parses a UUID in the 8-4-4-4-12 form. Hex digits may be lowercase or uppercase. Inverse of ToString().
+     * @throw KttException If text is not a UUID in that form.
+     */
+    static uuid Parse(const std::string& text);
 };
 
 } // namespace ktt::db

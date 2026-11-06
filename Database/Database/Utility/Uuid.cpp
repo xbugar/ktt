@@ -3,6 +3,7 @@
 #include <mutex>
 #include <random>
 
+#include <Api/KttException.h>
 #include <Database/Utility/Uuid.h>
 
 namespace ktt::db
@@ -69,6 +70,71 @@ uuid UuidGenerator::GenerateUuidV7()
 std::uint8_t UuidGenerator::GetVersion(const uuid& id)
 {
     return static_cast<std::uint8_t>(id[6] >> 4);
+}
+
+std::string UuidGenerator::ToString(const uuid& id)
+{
+    static constexpr char HexDigits[] = "0123456789abcdef";
+    std::string text;
+    text.reserve(36);
+
+    for (size_t i = 0; i < id.size(); ++i)
+    {
+        if (i == 4 || i == 6 || i == 8 || i == 10)
+            text += '-';
+
+        text += HexDigits[id[i] >> 4];
+        text += HexDigits[id[i] & 0x0F];
+    }
+
+    return text;
+}
+
+uuid UuidGenerator::Parse(const std::string& text)
+{
+    const auto hexValue = [](const char c) -> int
+    {
+        if (c >= '0' && c <= '9')
+            return c - '0';
+        if (c >= 'a' && c <= 'f')
+            return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F')
+            return c - 'A' + 10;
+        return -1;
+    };
+
+    const auto invalid = [&text]()
+    {
+        return KttException("Invalid UUID: \"" + text + "\"");
+    };
+
+    if (text.size() != 36)
+        throw invalid();
+
+    uuid id{};
+    size_t position = 0;
+
+    for (size_t i = 0; i < id.size(); ++i)
+    {
+        if (i == 4 || i == 6 || i == 8 || i == 10)
+        {
+            if (text[position] != '-')
+                throw invalid();
+
+            ++position;
+        }
+
+        const int high = hexValue(text[position]);
+        const int low = hexValue(text[position + 1]);
+
+        if (high < 0 || low < 0)
+            throw invalid();
+
+        id[i] = static_cast<std::uint8_t>((high << 4) | low);
+        position += 2;
+    }
+
+    return id;
 }
 
 } // namespace ktt::db

@@ -87,7 +87,7 @@ HttpResponse RemoteClient::Send(const std::string_view method, const std::string
     // One correlation id per logical request: the retries reuse it, so the server logs tie the attempts together.
     HttpHeaders headers{
         {"x-api-key", m_ApiKey},
-        {"correlation-id", UuidToWire(UuidGenerator::GenerateUuid())},
+        {"correlation-id", UuidGenerator::ToString(UuidGenerator::GenerateUuid())},
         {"accept", "application/json"}};
 
     if (!body.empty())
@@ -111,12 +111,23 @@ HttpResponse RemoteClient::Send(const std::string_view method, const std::string
             {
                 const std::string attempts = attempt > 1 ? " (after " + std::to_string(attempt) + " attempts)" : "";
                 throw KttException("ktt-db request " + std::string(method) + " " + std::string(path) + " failed"
-                    + attempts + ": " + error.what());
+                    + attempts + ": " + Redact(error.what()));
             }
         }
 
         m_Sleeper(GetBackoff(static_cast<uint32_t>(std::min<uint64_t>(attempt, UINT32_MAX))));
     }
+}
+
+std::string RemoteClient::Redact(std::string text) const
+{
+    static const std::string Replacement = "<api key>";
+
+    for (size_t position = text.find(m_ApiKey); position != std::string::npos;
+         position = text.find(m_ApiKey, position + Replacement.size()))
+        text.replace(position, m_ApiKey.size(), Replacement);
+
+    return text;
 }
 
 const std::string &RemoteClient::GetBaseUrl() const

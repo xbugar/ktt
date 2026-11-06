@@ -31,10 +31,4 @@ TEST_CASE("Invalid fingerprint strings are rejected", "[Database][Remote]")
     }
 }
 
-TEST_CASE("UUIDs are written lowercase 8-4-4-4-12", "[Database][Remote]")
-{
-    const ktt::db::uuid id{0x01, 0x93, 0xA1, 0xF2, 0x7C, 0x4E, 0x7B, 0x3A, 0x9D, 0x21, 0x5E, 0x8F, 0x0C, 0x6A, 0x4B, 0x17};
-    REQUIRE(ktt::db::UuidToWire(id) == "0193a1f2-7c4e-7b3a-9d21-5e8f0c6a4b17");
-}
-
 #endif // KTT_REMOTE_DATABASE

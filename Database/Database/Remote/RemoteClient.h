@@ -69,6 +69,14 @@ public:
     HttpResponse Send(std::string_view method, std::string_view path, const std::string &body,
         RetryPolicy retry) const;
 
+    /** @fn std::string Redact(std::string text) const
+     * Replaces every occurrence of the API key in text with "<api key>". Applied to every text that goes into an
+     * exception message, as a safeguard in case a server or proxy echoes the key back.
+     * @param text Text to clean.
+     * @return The text without the API key.
+     */
+    std::string Redact(std::string text) const;
+
     /** @fn const std::string& GetBaseUrl() const
      * @return The server root without a trailing slash.
      */

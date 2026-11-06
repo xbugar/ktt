@@ -61,8 +61,11 @@ whatever unit is active when you load it. Runs saved under different units can b
 `SyncFrom` copies the unit of each run.
 
 To read the stored durations, the database switches KTT's process-wide time unit to the run's unit while it
-deserializes a result and restores the previous unit afterwards. This is not thread-safe: do not load results while
-another thread uses or changes the time unit (for example while it tunes or prints results).
+deserializes a result and restores the previous unit afterwards. `RemoteDatabase` does the same with the unit the
+server returns for each result. The database code holds a process-wide lock while it switches the unit, so several
+threads that load or save through `Database` or `RemoteDatabase` take turns. The lock does not cover the rest of KTT:
+do not load results while another thread uses or changes the time unit outside the database (for example while it
+tunes, prints results or calls `Tuner::SetTimeUnit`).
 
 ## Save results
 
@@ -133,8 +136,24 @@ const ktt::db::RemoteDatabase db("https://ktt.example.org", apiKey);
 - `RemoteDatabase` is not copyable, like `Database`. Its methods are `const` and can be called from several threads
   at once.
 
-The `IDatabase` methods of `RemoteDatabase` are not implemented yet: they throw `KttException`. They follow in the next
-step of the remote client.
+`SaveResults`, `SimpleGetBestResults`, `GetBestResults` and `GetStatsForSource` work as described above for the
+local `Database`, with these differences:
+
+| Topic | Local `Database` | `RemoteDatabase` |
+| --- | --- | --- |
+| Errors | `KttException` | `KttException` for every failure: network errors, error statuses (with the server's message and the HTTP status) and malformed responses. An unknown source or space is not an error: the reads return no results, and `GetStatsForSource` returns `std::nullopt`. |
+| Output format | JSON, JSON T4 or XML | JSON and JSON T4. A result saved with `OutputFormat::XML` is stored as JSON (a warning is logged once). |
+| JSON indentation | `SaveOptions::indent` is applied | Ignored: the server stores the result as a JSON value. |
+| `limit` | Any value | At most 1000 for `SimpleGetBestResults` and `GetBestResults`; a larger limit throws without a request. A limit of 0 returns no results without a request. |
+| Which data is read | The whole file | Only what is linked to the realms of the API key. `GetStatsForSource` counts only those runs, results, devices and spaces (a space counts when it has a visible run). |
+| `SourceStats::name` | The stored source name | Always `std::nullopt`: the server keeps names per realm and does not return them here. |
+| Names | Stored when the source or space is created | Sent with every save. The server trims them and stores a name only when the source or space first appears in a realm; a name longer than 100 characters is rejected (`400`). |
+| `GetBestResults` | Pages through the runs in the file | Pages through the runs of the space on the server (500 per request), applies the predicates on the client and asks for the best results of the matching runs, so a query over many runs makes several requests. A run that moves to a later page while you read (because another client saved meanwhile) is used once. |
+| Runs without input data | Left out by an input predicate | The same. |
+| `SyncFrom` | Copies another `Database` | Not available: it is a member of `Database` only, not of `IDatabase`. |
+| Save retries | – | A save that fails with a network error or `502` / `503` / `504` is sent again with the same run id, so it is stored once. |
+
+The durations of a loaded result are read in the time unit the run was saved with, as locally.
 
 ### Connection options
 
