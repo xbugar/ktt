@@ -109,12 +109,12 @@ function linkLibrariesNvidia()
         
     if not _OPTIONS["no-cuda"] then
         defines {"KTT_API_CUDA"}
-        links {"cuda", "nvrtc"}
+        -- nvidia-ml (NVML) ships with the NVIDIA driver; it is used to read the driver version and for power usage.
+        links {"cuda", "nvrtc", "nvidia-ml"}
         cudaProjects = true
         
         if _OPTIONS["power-usage"] then
             defines {"KTT_POWER_USAGE_NVML"}
-            links {"nvidia-ml"}
         end
         
         if _OPTIONS["profiling"] == "cupti-legacy" or _OPTIONS["profiling"] == "cupti" then
@@ -249,6 +249,83 @@ function linkPython()
     return true
 end
 
+-- Compiles the bundled SQLite amalgamation into the current project, so the database extension does not depend on
+-- a system SQLite installation (there is none on Windows).
+function addSqlite()
+    local sqlitePath = "Libraries/sqlite-3.53.4"
+    files {sqlitePath .. "/sqlite3.c", sqlitePath .. "/sqlite3.h"}
+    includedirs {sqlitePath}
+
+    -- Third-party code, compiled as is.
+    filter {"files:" .. sqlitePath .. "/sqlite3.c"}
+        warnings "Off"
+
+    -- SQLite uses threads and dynamic loading of extensions.
+    filter {"system:linux"}
+        links {"pthread", "dl"}
+
+    filter {}
+end
+
+-- Links libcurl (HTTP + TLS) for the remote database client. CURL_ROOT may point to a libcurl installation with
+-- include and lib folders. It is required on Windows, where a dynamic libcurl with the import library lib/libcurl.lib
+-- is expected (e.g. vcpkg's x64-windows triplet); static libcurl builds are not supported there. Elsewhere the system
+-- libcurl is used when CURL_ROOT is unset (Linux: the libcurl development package, macOS: the SDK).
+function linkCurl()
+    local curlRoot = os.getenv("CURL_ROOT")
+
+    if curlRoot then
+        includedirs {curlRoot .. "/include"}
+        libdirs {curlRoot .. "/lib"}
+    elseif os.target() == "windows" then
+        error("libcurl was not found. Please set CURL_ROOT to a dynamic libcurl installation (include/curl/curl.h and lib/libcurl.lib, e.g. vcpkg's installed/x64-windows) to build with --remote-database.")
+    elseif os.target() == "linux" and not os.findlib("curl") then
+        error("libcurl was not found. Please install the libcurl development package (e.g. libcurl4-openssl-dev) or set CURL_ROOT to build with --remote-database.")
+    end
+
+    if os.target() == "windows" then
+        links {"libcurl"}
+    else
+        links {"curl"}
+    end
+end
+
+-- Whether any part of the database extension is built: the local SQLite store, the remote client or both.
+function isDatabaseEnabled()
+    return _OPTIONS["database"] ~= nil or _OPTIONS["remote-database"] ~= nil
+end
+
+-- Adds the database extension to the current project. The shared part (IDatabase.h, Database/Database/Utility) is
+-- always built; the local SQLite store (Database/Database/Local, KTT_DATABASE, sqlite3) only with --database, and the
+-- remote client (Database/Database/Remote, KTT_REMOTE_DATABASE, libcurl) only with --remote-database.
+function addDatabase()
+    files {"Database/**"}
+    includedirs {"Database"}
+
+    if _OPTIONS["database"] then
+        defines {"KTT_DATABASE"}
+        addSqlite()
+    else
+        removefiles {"Database/Database/Local/**"}
+    end
+
+    if _OPTIONS["remote-database"] then
+        defines {"KTT_REMOTE_DATABASE"}
+        linkCurl()
+
+        -- The server is a build-time constant (RemoteDatabase::GetHost); without the option the code's default is used.
+        local host = _OPTIONS["remote-database-host"]
+        if host then
+            if not (host:match("^https?://[^%s\"'\\?#]+$")) then
+                error("--remote-database-host must be an http:// or https:// URL without spaces, quotes, a query or a fragment, e.g. https://ktt.example.org")
+            end
+            defines {'KTT_REMOTE_DATABASE_HOST="' .. host .. '"'}
+        end
+    else
+        removefiles {"Database/Database/Remote/**"}
+    end
+end
+
 function linkAllLibraries()
     local librariesFound = linkComputeLibraries()
     
@@ -381,6 +458,167 @@ newoption
     description = "Disables compilation of tutorials"
 }
 
+newoption
+{
+    trigger = "database",
+    description = "Enables compilation of the local (SQLite) database; can be combined with --remote-database"
+}
+
+newoption
+{
+    trigger = "remote-database",
+    description = "Enables compilation of the remote (ktt-db server) database client, needs libcurl; can be combined with --database"
+}
+
+newoption
+{
+    trigger = "remote-database-host",
+    value = "URL",
+    description = "Server the remote database client talks to, fixed at build time (default https://supercuda.fi.muni.cz:8443)"
+}
+
+-- Helper function to add example projects
+-- name is the example folder under Examples/ and may be nested (e.g. "Database/CoulombSum3dLocal"); the project is
+-- named after its last segment. databaseKind is nil, "local" (needs --database) or "remote" (needs --remote-database).
+function addExampleProject(name, kernelExt, apiDefine, useRefVersions, shouldEnableOpenMP, databaseKind)
+    local projectName = path.getname(name) .. (useRefVersions and "Reference" or "") .. kernelExt
+
+    local cppFiles
+    if useRefVersions then
+        cppFiles = {"Examples/LegacyExamples/" .. name .. "/*.cpp"}
+    else
+        cppFiles = {"Examples/" .. name .. "/*.cpp"}
+    end
+
+    local exLib
+    if apiDefine == "KTT_CUDA_EXAMPLE" then
+        exLib = "ExamplesLibCuda"
+    elseif apiDefine == "KTT_OPENCL_EXAMPLE" then
+        exLib = "ExamplesLibOpenCl"
+    else
+        exLib = "ExamplesLibCpp"
+    end
+
+    project(projectName)
+        kind "ConsoleApp"
+        files {table.unpack(cppFiles)}
+        includedirs {"Source", "Examples/Common"}
+        defines {apiDefine}
+        links {"ktt", exLib}
+        if databaseKind == "local" then
+            -- Ktt.h pulls in <Database/Local/Database.h> under KTT_DATABASE
+            includedirs {"Database"}
+            defines {"KTT_DATABASE"}
+        elseif databaseKind == "remote" then
+            -- The example includes <Database/Remote/RemoteDatabase.h> itself; libcurl is linked into ktt only
+            includedirs {"Database"}
+            defines {"KTT_REMOTE_DATABASE"}
+        end
+        if shouldEnableOpenMP then
+            enableOpenMP()
+        end
+end
+
+-- Helper function to add OpenCL example with optional reference version
+function addOpenClExample(name, enableOpenMP, noReference)
+    addExampleProject(name, "OpenCl", "KTT_OPENCL_EXAMPLE", false, enableOpenMP)
+    if _OPTIONS["reference-versions"] and not noReference then
+        addExampleProject(name, "OpenCl", "KTT_OPENCL_EXAMPLE", true, enableOpenMP)
+    end
+end
+
+-- Helper function to add CUDA example with optional reference version
+function addCudaExample(name, enableOpenMP, noReference)
+    addExampleProject(name, "Cuda", "KTT_CUDA_EXAMPLE", false, enableOpenMP)
+    if _OPTIONS["reference-versions"] and not noReference then
+        addExampleProject(name, "Cuda", "KTT_CUDA_EXAMPLE", true, enableOpenMP)
+    end
+end
+
+-- Helper function to add C++ example with optional reference version
+function addCppExample(name, enableOpenMP, noReference)
+    addExampleProject(name, "Cpp", "KTT_CPP_EXAMPLE", false, enableOpenMP)
+    if _OPTIONS["reference-versions"] and not noReference then
+        addExampleProject(name, "Cpp", "KTT_CPP_EXAMPLE", true, enableOpenMP)
+    end
+end
+
+-- Helper functions to add database examples (no reference versions). databaseKind is "local" or "remote".
+function addDatabaseOpenClExample(name, enableOpenMP, databaseKind)
+    addExampleProject(name, "OpenCl", "KTT_OPENCL_EXAMPLE", false, enableOpenMP, databaseKind)
+end
+
+function addDatabaseCudaExample(name, enableOpenMP, databaseKind)
+    addExampleProject(name, "Cuda", "KTT_CUDA_EXAMPLE", false, enableOpenMP, databaseKind)
+end
+
+function addDatabaseCppExample(name, enableOpenMP, databaseKind)
+    addExampleProject(name, "Cpp", "KTT_CPP_EXAMPLE", false, enableOpenMP, databaseKind)
+end
+
+-- Adds the database examples of one list whose kind is built: "local" ones with --database, "remote" ones with
+-- --remote-database. Each entry is {folder under Examples/, enableOpenMP, databaseKind}.
+function addDatabaseExamples(list, addFunction)
+    for _, ex in ipairs(list) do
+        local kind = ex[3]
+        if (kind == "local" and _OPTIONS["database"]) or (kind == "remote" and _OPTIONS["remote-database"]) then
+            addFunction(ex[1], ex[2], kind)
+        end
+    end
+end
+
+-- Base example list (examples available for both OpenCL and CUDA)
+baseExamples = {
+    {"AtfCCSD"},
+    {"AtfConvolution"},
+    {"AtfGEMM"},
+    {"AtfPRL"},
+    {"Bicg"},
+    {"ClTuneConvolution"},
+    {"ClTuneGemm"},
+    {"CoulombSum3d", true},      -- requires OpenMP
+    {"Nbody"},
+    {"Reduction"},
+    {"Sort"},
+    {"Sort2"},
+    {"Transpose"},
+    {"Dummy"},
+    {"RodiniaHotspot", false, true},
+    {"GemmBatch", false, true}
+}
+
+-- OpenCL-only examples
+openClOnlyExamples = {
+    {"Convolution3d"},
+    {"CoulombSum2d"},
+    {"Covariance"}
+}
+
+-- CUDA-only examples
+cudaOnlyExamples = {
+    {"KernelTunerConvolution"},
+    {"KernelTunerPnpoly"},
+    {"Microbenchmarks"}
+}
+
+-- C++ examples
+cppExamples = {
+    {"CoulombSum3d", true}   -- requires OpenMP
+}
+
+-- Database examples, in Examples/Database/ (local ones require --database, remote ones --remote-database; the base
+-- list covers OpenCL and CUDA). Both share the kernels in Examples/Database/Common.
+databaseBaseExamples = {
+    {"Database/CoulombSum3dLocal", true, "local"},     -- requires OpenMP
+    {"Database/CoulombSum3dRemote", true, "remote"}    -- requires OpenMP
+}
+
+-- Database C++ examples
+databaseCppExamples = {
+    {"Database/CoulombSum3dLocal", true, "local"},     -- requires OpenMP
+    {"Database/CoulombSum3dRemote", true, "remote"}    -- requires OpenMP
+}
+
 -- Project configuration
 workspace "Ktt"
     local buildPath = "Build"
@@ -427,7 +665,8 @@ project "Ktt"
         "Libraries/CTPL-Ahajha/**",
         "Libraries/date-3/**",
         "Libraries/Json-3.9.1/**",
-        "Libraries/pugixml-1.11.4/**"
+        "Libraries/pugixml-1.11.4/**",
+        "Libraries/xxHash-0.8.4/**"
     }
     
     includedirs
@@ -436,8 +675,14 @@ project "Ktt"
         "Libraries/CTPL-Ahajha",
         "Libraries/date-3",
         "Libraries/Json-3.9.1",
-        "Libraries/pugixml-1.11.4"
+        "Libraries/pugixml-1.11.4",
+        "Libraries/xxHash-0.8.4"
     }
+
+    if isDatabaseEnabled() then
+        addDatabase()
+    end
+    
     
     if _OPTIONS["python"] then
         if os.target() == "linux" then
@@ -599,6 +844,77 @@ end -- _OPTIONS["no-tutorials"]
 
 -- Examples shared library and configuration
 if not _OPTIONS["no-examples"] then
+
+project "ExamplesLibCuda"
+    kind "StaticLib"
+    files
+    {
+        "Examples/Common/*.cpp"
+    }
+    includedirs {"Source"}
+    defines {"KTT_CUDA_EXAMPLE"}
+
+project "ExamplesLibOpenCl"
+    kind "StaticLib"
+    files
+    {
+        "Examples/Common/*.cpp"
+    }
+    includedirs {"Source"}
+    defines {"KTT_OPENCL_EXAMPLE"}
+
+project "ExamplesLibCpp"
+    kind "StaticLib"
+    files
+    {
+        "Examples/Common/*.cpp"
+    }
+    includedirs {"Source"}
+    defines {"KTT_CPP_EXAMPLE"}
+
+end -- _OPTIONS["no-examples"]
+
+-- Examples configuration
+if not _OPTIONS["no-examples"] then
+
+if openClProjects then
+
+    for _, ex in ipairs(baseExamples) do
+        addOpenClExample(ex[1], ex[2], ex[3])
+    end
+
+    for _, ex in ipairs(openClOnlyExamples) do
+        addOpenClExample(ex[1], ex[2], ex[3])
+    end
+
+    addDatabaseExamples(databaseBaseExamples, addDatabaseOpenClExample)
+
+end -- openClProjects
+    
+if cudaProjects then
+
+    for _, ex in ipairs(baseExamples) do
+        addCudaExample(ex[1], ex[2], ex[3])
+    end
+
+    for _, ex in ipairs(cudaOnlyExamples) do
+        addCudaExample(ex[1], ex[2], ex[3])
+    end
+
+    addDatabaseExamples(databaseBaseExamples, addDatabaseCudaExample)
+
+end -- cudaProjects
+
+if cppProjects then
+
+    for _, ex in ipairs(cppExamples) do
+        addCppExample(ex[1], ex[2], ex[3])
+    end
+
+    addDatabaseExamples(databaseCppExamples, addDatabaseCppExample)
+
+end -- cppProjects
+    
     include "Examples/examples.lua"
 end -- _OPTIONS["no-examples"]
 
@@ -616,7 +932,8 @@ project "Tests"
         "Libraries/CTPL-Ahajha/**",
         "Libraries/date-3/**",
         "Libraries/Json-3.9.1/**",
-        "Libraries/pugixml-1.11.4/**"
+        "Libraries/pugixml-1.11.4/**",
+        "Libraries/xxHash-0.8.4/**"
     }
     
     includedirs
@@ -626,7 +943,8 @@ project "Tests"
         "Libraries/CTPL-Ahajha",
         "Libraries/date-3",
         "Libraries/Json-3.9.1",
-        "Libraries/pugixml-1.11.4"
+        "Libraries/pugixml-1.11.4",
+        "Libraries/xxHash-0.8.4"
     }
     
     if _OPTIONS["no-opencl"] then
@@ -636,10 +954,15 @@ project "Tests"
     filter "action:gmake*"
         buildoptions {"-pthread"}
         linkoptions {"-pthread"}
-        
+
     filter {}
-    
+
+    if isDatabaseEnabled() then
+        -- Mirror the Ktt library project so the Tests/Database/ suite can exercise the databases that are built.
+        addDatabase()
+    end
+
     defines {"KTT_LIBRARY", "KTT_TESTS"}
     linkAllLibraries()
-    
+
 end -- _OPTIONS["tests"]
