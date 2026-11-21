@@ -298,11 +298,11 @@ void ExampleBase::InitCLI() {
         }
     }, "--stopCondition", 
     "Set a stop condition. <type> can be confs, fails, time, best, sigint. "
-    "<limit> is respectively configuration count (ulong), failed kernel run count (ulong), "
-    "total tuning duration in seconds (double), best configuration duration in "
-    "milliseconds (double), and for sigint write -1 (it is required, but ignored "
-    "due to the way the CLI is structured)",
-    "<type> <limit>", 2, 1});
+    "[limit] is only used in confs, fails, time, and best. There, it is respectively "
+    "configuration count (ulong), failed kernel run count (ulong), "
+    "total tuning duration in seconds (double), and best configuration duration in "
+    "milliseconds (double). sigint does not use [limit], so type only '--stopCondition sigint'.",
+    "<type> [limit]", 2, 1});
 
     m_cli.AddOption({[this](const vector<string> &args) {
         m_preciseParams = ktt::PreciseMeasurementParameters(stoul(args[0]),
@@ -390,7 +390,7 @@ void ExampleBase::CheckTunerFlags()
         }
         else if (m_computeApi == ktt::ComputeApi::CUDA)
         {
-            m_tuner->AddCompilerOptions("-use_fast_math");
+            m_tuner->AddCompilerOptions("--use_fast_math");
         }
         else if (!m_warnedFastMath)  // Don't warn twice
         {

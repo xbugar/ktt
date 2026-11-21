@@ -17,6 +17,8 @@
 #include <TuningRunner/TuningRunner.h>
 #include <Utility/Logger/LoggingLevel.h>
 #include <KttTypes.h>
+#include <Api/Configuration/RefinementParameters.h>
+#include <Api/Configuration/TuningPhase.h>
 
 namespace ktt
 {
@@ -72,6 +74,7 @@ public:
         const ArgumentId& customId = "");
     void RemoveArgument(const ArgumentId& id);
     void SaveArgument(const ArgumentId& id, const std::string& file) const;
+    void UpdateScalarArgument(const ArgumentId& id, const void* data);
     void SetReadOnlyArgumentCache(const bool flag);
     void SetWriteOnlyArgumentZero(const bool flag);
 
@@ -100,6 +103,11 @@ public:
     std::vector<KernelResult> SimulateKernelTuning(const KernelId id, const std::vector<KernelResult>& results,
         std::unique_ptr<StopCondition> stopCondition);
     void SetSearcher(const KernelId id, std::unique_ptr<Searcher> searcher);
+    void SetRefinementParameters(const KernelId id, const RefinementParameters& parameters);
+    void FinishExploration(const KernelId id);
+    void ResumeExploration(const KernelId id);
+    void RepeatRefinement(const KernelId id);
+    TuningPhase GetTuningPhase(const KernelId id) const;
     void InitializeConfigurationData(const KernelId id);
     void ClearConfigurationData(const KernelId id);
     uint64_t GetConfigurationsCount(const KernelId id) const;
@@ -122,6 +130,9 @@ public:
     void RemoveComputeQueue(const QueueId id);
     void WaitForComputeAction(const ComputeActionId id);
     void WaitForTransferAction(const TransferActionId id);
+    void UpdateBuffer(const ArgumentId& id, const void *dataPtr, size_t dataSize);
+    void DownloadBuffer(const ArgumentId& id, void* destination, const size_t dataSize = 0);
+    void ClearBuffer(const ArgumentId& id);
     void SynchronizeQueue(const QueueId queueId);
     void SynchronizeQueues();
     void SynchronizeDevice();

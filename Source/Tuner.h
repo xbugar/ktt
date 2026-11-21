@@ -30,6 +30,8 @@
 #include <Utility/Logger/LoggingLevel.h>
 #include <KttTypes.h>
 #include <Api/Configuration/PreciseMeasurementParameters.h>
+#include <Api/Configuration/RefinementParameters.h>
+#include <Api/Configuration/TuningPhase.h>
 
 // Data holders
 #include <Api/Configuration/DimensionVector.h>
@@ -241,7 +243,7 @@ public:
       * During the tuning process, tuner will generate configurations for combinations of kernel parameters and their values.
       * @param id Id of kernel for which the parameter will be added.
       * @param name Name of a parameter. Parameter names for a single kernel must be unique.
-      * @param values Optional allowed values for the parameter. Value type is a string. If left empty, parameter with be either
+      * @param values Optional allowed values for the parameter. Value type is a string. If left empty, parameter will be either
       * present without any value or completely excluded.
       * @param group Optional group inside which the parameter will be added. Tuning configurations are generated separately for each
       * group. This is useful when kernels contain groups of parameters that can be tuned independently. In this way, the total number
@@ -252,10 +254,10 @@ public:
 
     /** @fn void AddSeparateCompilerParameter(const KernelId id, const std::string& name, const std::vector<std::string>& values = {})
       * Works like AddCompilerParameter(), but compiler options added through this function, will be tuned separately (after standard tuning).
-      * These compiler optinos can be tuned with TuneOptions() function.
+      * These compiler options can be tuned with TuneOptions() function.
       * @param id Id of kernel for which the parameter will be added.
       * @param name Name of a parameter. Parameter names for a single kernel must be unique.
-      * @param values Optional allowed values for the parameter. Value type is a string. If left empty, parameter with be either
+      * @param values Optional allowed values for the parameter. Value type is a string. If left empty, parameter will be either
       * present without any value or completely excluded.
       */
     void AddSeparateCompilerParameter(const KernelId id, const std::string& name, const std::vector<std::string>& values = {});
@@ -297,7 +299,7 @@ public:
 
     /** @fn void AddScriptSeparateCompilerParameter(const KernelId id, const std::string& name, const ParameterValueType valueType,
       * const std::string& valueScript)
-      * Works similarily to AddScriptCompilerParameter(), but for compiler parameters that are tuned separately.
+      * Works similarly to AddScriptCompilerParameter(), but for compiler parameters that are tuned separately.
       * For standard tuning, only its first value will be used. Other values can be tuned with TuneOptions.
       * @param id Id of kernel for which the parameter will be added.
       * @param name Name of a parameter. Parameter names for a single kernel must be unique.
@@ -345,7 +347,7 @@ public:
     void AddThreadModifier(const KernelId id, const std::vector<KernelDefinitionId>& definitionIds, const ModifierType type,
         const ModifierDimension dimension, const std::string& parameter, const ModifierAction action);
 
-    /** @fn void void AddScriptThreadModifier(const KernelId id, const std::vector<KernelDefinitionId>& definitionIds,
+    /** @fn void AddScriptThreadModifier(const KernelId id, const std::vector<KernelDefinitionId>& definitionIds,
       * const ModifierType type, const ModifierDimension dimension, const std::string& script)
       * Adds thread modifier function for the specified kernel. Thread modifiers are useful in cases when kernel parameters affect
       * number of required kernel threads. If multiple thread modifiers are specified for the same type and dimension, they are applied
@@ -527,7 +529,7 @@ public:
       */
     void SaveArgumentVector(const ArgumentId& id, const std::string& filePath);
 
-    /** @fn template <typename T> ArgumentId AddArgumentScalar(const T& data, const ArgumentId& customId = "");
+    /** @fn template <typename T> ArgumentId AddArgumentScalar(const T& data, const ArgumentId& customId = "")
       * Adds new scalar argument to the tuner. All scalar arguments are read-only.
       * @param data Kernel argument data. The data type must be trivially copyable. Bool, reference or pointer types are not supported.
       * @param customId Custom argument id that can be specified instead of a default.
@@ -545,6 +547,15 @@ public:
       * @return Id assigned to kernel argument by tuner. The id can be used in other API methods.
       */
     ArgumentId AddArgumentScalar(const void* data, const size_t dataSize, const ArgumentId& customId = "");
+
+    /** @fn void UpdateScalarArgument(const ArgumentId& id, const void* data)
+      * Updates the data of the specified scalar argument. Only the data stored by the tuner are changed, nothing is transferred
+      * to the device. Every following run of a kernel that uses the argument therefore uses the new data. This differs from
+      * ComputeInterface::UpdateScalarArgument(), which updates the scalar argument only under the currently launched kernel.
+      * @param id Id of scalar argument which will be updated.
+      * @param data Pointer to new data for scalar argument. The data must have matching kernel argument data type.
+      */
+    void UpdateScalarArgument(const ArgumentId& id, const void* data);
 
     /** @fn template <typename T> ArgumentId AddArgumentLocal(const size_t localMemorySize, const ArgumentId& customId = "")
       * Adds new local memory (shared memory in CUDA) argument to the tuner. All local memory arguments are read-only and cannot be
@@ -594,6 +605,46 @@ public:
       */
     void SetWriteOnlyArgumentZero(const bool flag);
 
+    /** @fn void UpdateBuffer(const ArgumentId& id)
+      * Updates data in the compute buffer of a specified vector argument. Same behaviour as ComputeInterface::UpdateBuffer():
+      * If the compute buffer of the argument does not exist yet, it is created and the data are uploaded into it.
+      * If the buffer already exists, its content is replaced without any allocations.
+      * Except: duration of this call is not counted towards kernel's total duration (as it would be in the ComputeInterface 
+      * call) or data movement overhead (as it would be with framework-managed buffers).
+      * @param id Id of vector argument which will be uploaded. The argument's management type should be User, not Framework,
+      * to avoid duplicate work and possible inconsistencies.
+      * @param dataPtr Pointer to the raw data in host memory. If dataPtr is nullptr, the data are taken from 
+      * the argument, which means either a copy managed by KTT, or a reference back to user data 
+      * (see argument referenceUserData of Tuner::AddArgumentVector).
+      * @param dataSize Size in bytes of buffer portion which will be uploaded from the specified source, starting with the first
+      * byte. If zero, the entire buffer will be uploaded.
+      */
+    void UpdateBuffer(const ArgumentId& id, const void *dataPtr = nullptr, const size_t dataSize = 0);
+
+    /** @fn void DownloadBuffer(const ArgumentId& id, void* destination, const size_t dataSize = 0)
+      * Downloads the specified vector argument from its compute buffer. The transfer is submitted to the default queue and the
+      * method returns after it is finished. The compute buffer of the argument must already exist, which is the case after the
+      * argument has been uploaded to the device for the first time (e.g., by a previous call to Run() or TuneIteration() or
+      * UpdateBuffer()).
+      * Note that duration of this call is not counted towards kernel's total duration (as it would be in the ComputeInterface 
+      * call) or data movement overhead (as it would be with framework-managed buffers).
+      * @param id Id of vector argument which will be downloaded.
+      * @param destination Buffer where the argument data will be downloaded. Its size must be equal or greater than the specified
+      * data size.
+      * @param dataSize Size in bytes of buffer portion which will be downloaded to specified destination, starting with the first
+      * byte. If zero, the entire buffer will be downloaded.
+      */
+    void DownloadBuffer(const ArgumentId& id, void* destination, const size_t dataSize = 0);
+
+    /** @fn void ClearBuffer(const ArgumentId& id)
+      * Removes compute buffer for the specified vector argument. This method should be used mainly with arguments with
+      * ::ArgumentManagementType set to User.
+      * Note that duration of this call is not counted towards kernel's total duration (as it would be in the ComputeInterface 
+      * call) or data movement overhead (as it would be with framework-managed buffers).
+      * @param id Id of vector argument whose buffer will be removed.
+      */
+    void ClearBuffer(const ArgumentId& id);
+
     /** @fn KernelResult Run(const KernelId id, const KernelConfiguration& configuration,
       * const std::vector<BufferOutputDescriptor>& output)
       * Runs kernel using the specified configuration.
@@ -630,9 +681,9 @@ public:
     void SetProfiling(const bool flag);
 
     /** @fn bool GetProfiling()
-     * Returns whether profiling is switched on.
-     * @return true if KTT is set to collect profiling metrics, false otherwise.
-     */
+      * Returns whether profiling is switched on.
+      * @return true if KTT is set to collect profiling metrics, false otherwise.
+      */
     bool GetProfiling();
 
     /** @fn void SetValidationMethod(const ValidationMethod method, const double toleranceThreshold)
@@ -871,7 +922,7 @@ public:
       * @param modelPath Path to a ML model file containing trained model for the tuned kernel.
       * @param useBuiltinModule Toggles usage of built-in profile-based searcher module. If set to false, the built-in module will not be used,
       * making it possible to use externally modified version of module which is useful for debugging.
-      * @param batchSize number of configuration from which the fastest one is profiled. Default value also needs to be changed in TuningLoader/Commands/SearcherCommand.cpp
+      * @param batchSize number of configurations from which the fastest one is profiled. Default value also needs to be changed in TuningLoader/Commands/SearcherCommand.cpp
       * @param neighborSize number of neighboring configurations that are used for batch selection. Default value also needs to be changed in TuningLoader/Commands/SearcherCommand.cpp
       * @param randomSize number of random configurations that are used for batch selection. Default value also needs to be changed in TuningLoader/Commands/SearcherCommand.cpp
       * @param seed Optional seed for the source of randomness used by the searcher. See Searcher::SetSeed method for more information. Note that the seed
@@ -879,6 +930,42 @@ public:
       * also bases its decisions on profiling counters and kernel durations measured during tuning, which fluctuate between tuning runs.
       */
     void SetProfileBasedSearcher(const KernelId id, const std::string& modelPath, const bool useBuiltinModule = true, const uint batchSize = 5, const uint neighborSize = 100, const uint randomSize = 10, const std::optional<uint64_t> seed = std::nullopt);
+
+    /** @fn void SetRefinementParameters(const KernelId id, const RefinementParameters& parameters)
+      * Sets refinement phase parameters for the specified kernel during dynamic tuning.
+      * Refinement is implicitly turned off, has to be called before tuning or else the previous configurations won't be taken inttoo consideration.
+      * @param id Id of kernel for which the refinement parameters will be set.
+      * @param parameters Parameters controlling top candidates selection and repeated measurements.
+      */
+    void SetRefinementParameters(const KernelId id, const RefinementParameters& parameters);
+
+    /** @fn void FinishExploration(const KernelId id)
+      * Ends the exploration phase for the specified kernel early and transitions to the refinement phase (if configured)
+      * or directly to the finished phase.
+      * @param id Id of kernel whose exploration phase will be finished.
+      */
+    void FinishExploration(const KernelId id);
+
+    /** @fn void ResumeExploration(const KernelId id)
+      * Resumes exploration of the specified kernel after it was finished by FinishExploration. The refinement winner becomes
+      * the best configuration and only the refined candidates are kept for the next refinement.
+      * @param id Id of kernel whose exploration will be resumed.
+      */
+    void ResumeExploration(const KernelId id);
+
+    /** @fn void RepeatRefinement(const KernelId id)
+      * Repeats the last finished refinement of the specified kernel with the same candidates. Only new measurements are
+      * used to select the winner, the previous winner remains the best configuration until the refinement finishes.
+      * @param id Id of kernel whose refinement will be repeated.
+      */
+    void RepeatRefinement(const KernelId id);
+
+    /** @fn TuningPhase GetTuningPhase(const KernelId id) const
+      * Returns the current dynamic tuning phase for the specified kernel.
+      * @param id Id of kernel for which the tuning phase will be retrieved.
+      * @return Current tuning phase of the specified kernel. See ::TuningPhase for more information.
+      */
+    TuningPhase GetTuningPhase(const KernelId id) const;
 
     /** @fn void InitializeConfigurationData(const KernelId id)
       * Generates configuration space and initializes searcher for the specified kernel.
@@ -977,7 +1064,6 @@ public:
       * @param results Results which will be searched.
       */
     KernelResult GetBestResult(const std::vector<KernelResult>& results) const;
-
 
     /** @fn void SaveResults(const std::vector<KernelResult>& results, const std::string& filePath, const OutputFormat format,
       * const UserData& data = {}) const
@@ -1167,7 +1253,7 @@ public:
 
     /** @fn static void SetLoggingTarget(const std::string& filePath)
       * Sets the target for info messages logging to specified file. Default logging target is `std::clog`.
-      * @param filePath Path to file where tuner info messages will printed.
+      * @param filePath Path to file where tuner info messages will be printed.
       */
     static void SetLoggingTarget(const std::string& filePath);
 
