@@ -1,4 +1,7 @@
+#include <cctype>
 #include <fstream>
+#include <iostream>
+#include <limits>
 
 #include <Api/KttException.h>
 #include <ComputeEngine/Cuda/CudaEngine.h>
@@ -8,14 +11,16 @@
 #include <Output/Deserializer/JsonDeserializer.h>
 #include <Output/Deserializer/JsonT4Deserializer.h>
 #include <Output/Deserializer/XmlDeserializer.h>
+#include <Output/JsonConverters.h>
 #include <Output/Serializer/JsonSerializer.h>
 #include <Output/Serializer/JsonT4Serializer.h>
 #include <Output/Serializer/XmlSerializer.h>
 #include <Output/TimeConfiguration/TimeConfiguration.h>
 #include <Output/TunerMetadata.h>
 #include <Utility/ErrorHandling/Assert.h>
-#include <Utility/Logger/Logger.h>
 #include <Utility/FileSystem.h>
+#include <Utility/Fingerprint/FingerprintUtility.h>
+#include <Utility/Logger/Logger.h>
 #include <TunerCore.h>
 
 namespace ktt
@@ -204,6 +209,18 @@ void TunerCore::SaveArgument(const ArgumentId& id, const std::string& file) cons
     m_ArgumentManager->SaveArgument(id, file);
 }
 
+void TunerCore::UpdateScalarArgument(const ArgumentId& id, const void* data)
+{
+    auto& argument = m_ArgumentManager->GetArgument(id);
+
+    if (argument.GetMemoryType() != ArgumentMemoryType::Scalar)
+    {
+        throw KttException("Argument with id " + id + " is not a scalar argument");
+    }
+
+    argument.SetOwnedData(data, argument.GetDataSize());
+}
+
 void TunerCore::SetReadOnlyArgumentCache(const bool flag)
 {
     m_KernelRunner->SetReadOnlyArgumentCache(flag);
@@ -305,6 +322,31 @@ void TunerCore::SetSearcher(const KernelId id, std::unique_ptr<Searcher> searche
     m_TuningRunner->SetSearcher(id, std::move(searcher));
 }
 
+void TunerCore::SetRefinementParameters(const KernelId id, const RefinementParameters& parameters)
+{
+    m_TuningRunner->SetRefinementParameters(id, parameters);
+}
+
+void TunerCore::FinishExploration(const KernelId id)
+{
+    m_TuningRunner->FinishExploration(id);
+}
+
+void TunerCore::ResumeExploration(const KernelId id)
+{
+    m_TuningRunner->ResumeExploration(id);
+}
+
+void TunerCore::RepeatRefinement(const KernelId id)
+{
+    m_TuningRunner->RepeatRefinement(id);
+}
+
+TuningPhase TunerCore::GetTuningPhase(const KernelId id) const
+{
+    return m_TuningRunner->GetTuningPhase(id);
+}
+
 void TunerCore::InitializeConfigurationData(const KernelId id)
 {
     const auto& kernel = m_KernelManager->GetKernel(id);
@@ -373,6 +415,68 @@ KernelResult TunerCore::GetBestResult(const std::vector<KernelResult>& results) 
     return results[bestIdx];
 }
 
+ktt::db::TuningInfo TunerCore::GetDatabaseTuningInfo(const KernelId id) const
+{
+    const auto& kernel = m_KernelManager->GetKernel(id);
+    const auto& parameters = kernel.GetParameters();
+    const auto& sources = kernel.GetDefinitions();
+    const auto constraints = kernel.GetConstraints();
+    const auto deviceInfo = GetCurrentDeviceInfo();
+
+    ktt::db::TuningInfo s;
+    {
+        ktt::db::TuningSpaceInfo spaceInfo;
+        {
+            spaceInfo.spaceFingerprint = m_TuningRunner->GetConfigurationFingerprint(kernel);
+            spaceInfo.parameterFingerprint = FingerprintUtility::GetFingerprintOfParameters(parameters);
+            spaceInfo.sourceFingerprint = FingerprintUtility::GetFingerprintOfDefinitions(sources);
+        }
+        s.spaceInfo = spaceInfo;
+
+        ktt::db::DeviceInfo d;
+        {
+            d.computeApi = m_ComputeEngine->GetComputeApi();
+            d.name = deviceInfo.GetName();
+            d.type = deviceInfo.GetDeviceTypeString();
+            d.vendor = deviceInfo.GetVendor();
+            d.driverVersion = deviceInfo.GetDriverVersion();
+
+            if (const auto& identifier = deviceInfo.GetDeviceIdentifier(); !identifier.empty())
+            {
+                d.deviceIdentifier = identifier;
+            }
+
+            if (d.computeApi == ComputeApi::OpenCL || d.computeApi == ComputeApi::Vulkan)
+            {
+                d.extensions = deviceInfo.GetExtensions();
+            }
+
+            if (d.computeApi == ComputeApi::CUDA)
+            {
+                d.cudaComputeCapabilityMajor = deviceInfo.GetCudaComputeCapabilityMajor();
+                d.cudaComputeCapabilityMinor = deviceInfo.GetCudaComputeCapabilityMinor();
+            }
+        }
+        s.device = d;
+        s.tuner = ktt::db::TunerInfo{"KTT", GetKttVersionString()};
+    }
+    return s;
+}
+
+std::vector<ktt::db::SourceDefinition> TunerCore::GetKernelSources(const KernelId id) const
+{
+    const auto& kernel = m_KernelManager->GetKernel(id);
+    std::vector<ktt::db::SourceDefinition> sources;
+
+    // The same definitions, in the same order, as the source fingerprint in GetDatabaseTuningInfo
+    for (const auto* definition : kernel.GetDefinitions())
+    {
+        sources.push_back(ktt::db::SourceDefinition{definition->GetName(), definition->GetSource()});
+    }
+
+    return sources;
+}
+
 void TunerCore::SaveResults(const std::vector<KernelResult>& results, const std::string& filePath, const OutputFormat format,
     const UserData& data) const
 {
@@ -435,6 +539,27 @@ void TunerCore::WaitForComputeAction(const ComputeActionId id)
 void TunerCore::WaitForTransferAction(const TransferActionId id)
 {
     m_ComputeEngine->WaitForTransferAction(id);
+}
+
+void TunerCore::UpdateBuffer(const ArgumentId& id, const void *dataPtr, size_t dataSize)
+{
+    auto& argument = m_ArgumentManager->GetArgument(id);
+
+    const auto queue = m_ComputeEngine->GetDefaultQueue();
+
+    const auto actionId = m_ComputeEngine->UpdateArgument(argument, queue, dataPtr, dataSize);
+    m_ComputeEngine->WaitForTransferAction(actionId);
+}
+
+void TunerCore::DownloadBuffer(const ArgumentId& id, void* destination, const size_t dataSize)
+{
+    const auto actionId = m_ComputeEngine->DownloadArgument(id, m_ComputeEngine->GetDefaultQueue(), destination, dataSize);
+    m_ComputeEngine->WaitForTransferAction(actionId);
+}
+
+void TunerCore::ClearBuffer(const ArgumentId& id)
+{
+    m_ComputeEngine->ClearBuffer(id);
 }
 
 void TunerCore::SynchronizeQueue(const QueueId queueId)
